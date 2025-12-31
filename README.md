@@ -6,6 +6,9 @@ Generate **personalized Spotify playlists** based on your **mood**, **activity**
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.3.3-green?logo=flask)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![PayPal](https://img.shields.io/badge/Donate-PayPal-003087?style=flat&logo=paypal&logoColor=white)]([https://www.paypal.me/YOUR_USERNAME](https://paypal.me/abdelrahman22wanas))
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/abdelrahman22wanas)
+
 
 ## ⚡ Quick Start
 
