@@ -1,0 +1,439 @@
+/* ============================================
+   Global Styles
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #1DB954;
+    --primary-dark: #1ed760;
+    --secondary-color: #191414;
+    --accent-color: #1e90ff;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --border-color: #282828;
+    --success: #1DB954;
+    --error: #e22134;
+    --warning: #f0ad4e;
+    --transition: all 0.3s ease;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+/* ============================================
+   Container & Layout
+   ============================================ */
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.header {
+    text-align: center;
+    padding: 40px 20px;
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    font-size: 3em;
+    font-weight: 700;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--primary-dark), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text; /* Standard property (supported in modern browsers) */
+    color: transparent; /* Fallback for older browsers */
+}
+
+.subtitle {
+    font-size: 1.1em;
+    color: var(--text-secondary);
+}
+
+.main-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 40px;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+
+    .header h1 {
+        font-size: 2em;
+    }
+}
+
+/* ============================================
+   Form Section
+   ============================================ */
+
+.form-section {
+    background: rgba(25, 20, 20, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+}
+
+.selector-group {
+    margin-bottom: 35px;
+}
+
+.selector-group:last-of-type {
+    margin-bottom: 25px;
+}
+
+.selector-group h2 {
+    font-size: 1.3em;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+}
+
+/* ============================================
+   Button Groups
+   ============================================ */
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.mood-btn,
+.activity-btn,
+.time-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 12px 15px;
+    background: rgba(45, 45, 45, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.mood-btn:hover,
+.activity-btn:hover,
+.time-btn:hover {
+    background: rgba(29, 185, 84, 0.1);
+    border-color: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.mood-btn.active,
+.activity-btn.active,
+.time-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-dark);
+    color: #000;
+    box-shadow: 0 0 20px rgba(29, 185, 84, 0.5);
+    transform: scale(1.05);
+}
+
+.emoji {
+    font-size: 1.8em;
+}
+
+.label {
+    font-size: 0.85em;
+}
+
+/* ============================================
+   Generate Button
+   ============================================ */
+
+.button-container {
+    margin: 25px 0 15px;
+}
+
+.generate-btn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    border: none;
+    border-radius: 8px;
+    color: #000;
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+}
+
+.generate-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(29, 185, 84, 0.5);
+}
+
+.generate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-icon {
+    font-size: 1.3em;
+}
+
+/* ============================================
+   Loading & Error States
+   ============================================ */
+
+.loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.loading.hidden,
+.error.hidden,
+.playlist-container.hidden {
+    display: none;
+}
+
+.spinner {
+    border: 3px solid rgba(29, 185, 84, 0.2);
+    border-radius: 50%;
+    border-top: 3px solid var(--primary-dark);
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading p {
+    color: var(--text-secondary);
+    font-size: 0.95em;
+}
+
+.error {
+    background: rgba(226, 33, 52, 0.1);
+    border: 1px solid var(--error);
+    border-radius: 8px;
+    padding: 15px;
+    color: #ff6b6b;
+    margin-top: 15px;
+}
+
+/* ============================================
+   Playlist Container
+   ============================================ */
+
+.playlist-container {
+    background: rgba(25, 20, 20, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+    grid-column: 1 / -1;
+}
+
+.playlist-header {
+    margin-bottom: 25px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 15px;
+}
+
+.playlist-header h2 {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+}
+
+.playlist-title {
+    color: var(--primary-dark);
+    font-size: 1.1em;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* ============================================
+   Tracks List
+   ============================================ */
+
+.tracks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.track-item {
+    display: grid;
+    grid-template-columns: 80px 1fr 100px;
+    gap: 15px;
+    align-items: center;
+    background: rgba(45, 45, 45, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.track-item:hover {
+    background: rgba(29, 185, 84, 0.1);
+    border-color: var(--primary-color);
+    transform: translateX(5px);
+}
+
+.track-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 6px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.track-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.track-name {
+    font-weight: 600;
+    font-size: 1em;
+    color: var(--text-primary);
+}
+
+.track-artist {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.track-album {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin-top: 3px;
+}
+
+.track-duration {
+    text-align: right;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.play-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: none;
+    color: #000;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em;
+    transition: var(--transition);
+}
+
+.play-btn:hover {
+    background: var(--primary-dark);
+    transform: scale(1.1);
+}
+
+.play-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .track-item {
+        grid-template-columns: 60px 1fr;
+    }
+
+    .track-image {
+        width: 60px;
+        height: 60px;
+    }
+
+    .track-duration {
+        grid-column: 2;
+        text-align: left;
+        margin-top: 5px;
+    }
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+
+.footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    border-top: 1px solid var(--border-color);
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 600px) {
+    .container {
+        padding: 10px;
+    }
+
+    .header {
+        padding: 20px 10px;
+    }
+
+    .header h1 {
+        font-size: 1.6em;
+    }
+
+    .form-section {
+        padding: 20px;
+    }
+
+    .button-group {
+        gap: 8px;
+    }
+
+    .mood-btn,
+    .activity-btn,
+    .time-btn {
+        padding: 10px 12px;
+        font-size: 0.85em;
+    }
+
+    .emoji {
+        font-size: 1.5em;
+    }
+}
