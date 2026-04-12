@@ -3,7 +3,7 @@
 # Mood to Spotify track characteristics mapping
 MOOD_CHARACTERISTICS = {
     'happy': {
-        'seed_genres': ['pop', 'dance', 'feel-good'],
+        'seed_genres': ['pop', 'dance', 'rock'],
         'energy': 0.7,
         'danceability': 0.7,
         'valence': 0.85,
@@ -44,7 +44,7 @@ ACTIVITY_CHARACTERISTICS = {
     'study': {
         'energy': 0.4,
         'danceability': 0.3,
-        'seed_genres': ['lo-fi', 'ambient', 'indie'],
+        'seed_genres': ['chill', 'ambient', 'indie'],
     },
     'party': {
         'energy': 0.85,
@@ -82,3 +82,4 @@ TIME_OF_DAY_ADJUSTMENTS = {
 # Spotify API limits
 PLAYLIST_SIZE = 25
 SEARCH_LIMIT = 10
+RECENT_TRACK_WINDOW = 300

@@ -3,10 +3,21 @@ Music Playlist Generator - Setup Configuration
 Enables installation via pip: pip install -e .
 """
 
+import os
 from setuptools import setup, find_packages
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+
+def read_long_description():
+    """Prefer root README and fall back to docs README for packaging."""
+    candidate_paths = ["README.md", os.path.join("DOCS", "README.md")]
+    for path in candidate_paths:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as fh:
+                return fh.read()
+    return "Music Playlist Generator"
+
+
+long_description = read_long_description()
 
 setup(
     name="music-playlist-generator",
@@ -41,7 +52,10 @@ setup(
         "spotipy==2.22.1",
         "python-dotenv==1.0.0",
         "requests==2.31.0",
-        "gunicorn==21.2.0",
+        "gunicorn==23.0.0",
+        "waitress==3.0.2",
+        "pywebview==6.1; platform_system == 'Windows' and python_version < '3.14'",
+        "pythonnet==3.0.5; platform_system == 'Windows' and python_version < '3.14'",
     ],
     extras_require={
         "dev": [
@@ -54,7 +68,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "music-playlist-generator=app:app",
+            "music-playlist-generator=app:main",
         ],
     },
 )

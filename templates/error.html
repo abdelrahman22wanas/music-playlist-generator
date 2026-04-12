@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+<div class="shell">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+
+    <main class="layout" style="grid-template-columns: 1fr;">
+        <section class="panel results" style="min-height: 55vh; display: grid; place-items: center;">
+            <div class="empty-state" style="max-width: 700px; width: 100%;">
+                <h3>{{ title }}</h3>
+                <p>{{ message }}</p>
+                <div class="action-row" style="justify-content: center; margin-top: 14px;">
+                    <a class="btn btn-primary" href="{{ url_for('index') }}">Go Home</a>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

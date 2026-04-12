@@ -1,131 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎵 Mood Playlist Generator</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <header class="header">
-            <h1>🎵 Mood Playlist Generator</h1>
-            <p class="subtitle">Create personalized playlists based on your mood, activity, and time</p>
-        </header>
+{% extends "base.html" %}
 
-        <main class="main-content">
-            <div class="form-section">
-                <!-- Mood Selection -->
-                <div class="selector-group">
-                    <h2>How are you feeling?</h2>
-                    <div class="button-group mood-group">
-                        <button class="mood-btn" data-mood="happy" title="Happy">
-                            <span class="emoji">😊</span>
-                            <span class="label">Happy</span>
-                        </button>
-                        <button class="mood-btn" data-mood="sad" title="Sad">
-                            <span class="emoji">😢</span>
-                            <span class="label">Sad</span>
-                        </button>
-                        <button class="mood-btn" data-mood="energetic" title="Energetic">
-                            <span class="emoji">⚡</span>
-                            <span class="label">Energetic</span>
-                        </button>
-                        <button class="mood-btn" data-mood="calm" title="Calm">
-                            <span class="emoji">😌</span>
-                            <span class="label">Calm</span>
-                        </button>
-                        <button class="mood-btn" data-mood="party" title="Party">
-                            <span class="emoji">🎉</span>
-                            <span class="label">Party</span>
-                        </button>
-                    </div>
-                </div>
+{% block title %}Mood Playlist Generator{% endblock %}
 
-                <!-- Activity Selection -->
-                <div class="selector-group">
-                    <h2>What are you doing?</h2>
-                    <div class="button-group activity-group">
-                        <button class="activity-btn" data-activity="workout" title="Workout">
-                            <span class="emoji">🏃</span>
-                            <span class="label">Workout</span>
-                        </button>
-                        <button class="activity-btn" data-activity="study" title="Study">
-                            <span class="emoji">📚</span>
-                            <span class="label">Study</span>
-                        </button>
-                        <button class="activity-btn" data-activity="party" title="Party">
-                            <span class="emoji">🎊</span>
-                            <span class="label">Party</span>
-                        </button>
-                        <button class="activity-btn" data-activity="sleep" title="Sleep">
-                            <span class="emoji">💤</span>
-                            <span class="label">Sleep</span>
-                        </button>
-                    </div>
-                </div>
+{% block body %}
+    <div id="appRoot"></div>
+    <noscript>
+        JavaScript is required to run this app.
+    </noscript>
+{% endblock %}
 
-                <!-- Time of Day Selection -->
-                <div class="selector-group">
-                    <h2>What time of day?</h2>
-                    <div class="button-group time-group">
-                        <button class="time-btn" data-time="morning" title="Morning">
-                            <span class="emoji">🌅</span>
-                            <span class="label">Morning</span>
-                        </button>
-                        <button class="time-btn" data-time="afternoon" title="Afternoon">
-                            <span class="emoji">☀️</span>
-                            <span class="label">Afternoon</span>
-                        </button>
-                        <button class="time-btn" data-time="evening" title="Evening">
-                            <span class="emoji">🌆</span>
-                            <span class="label">Evening</span>
-                        </button>
-                        <button class="time-btn" data-time="night" title="Night">
-                            <span class="emoji">🌙</span>
-                            <span class="label">Night</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Generate Button -->
-                <div class="button-container">
-                    <button id="generateBtn" class="generate-btn" disabled>
-                        <span class="btn-icon">🎵</span>
-                        <span class="btn-text">Generate Playlist</span>
-                    </button>
-                </div>
-
-                <!-- Loading Indicator -->
-                <div id="loading" class="loading hidden">
-                    <div class="spinner"></div>
-                    <p>Creating your perfect playlist...</p>
-                </div>
-
-                <!-- Error Message -->
-                <div id="error" class="error hidden"></div>
-            </div>
-
-            <!-- Playlist Results -->
-            <div id="playlistContainer" class="playlist-container hidden">
-                <div class="playlist-header">
-                    <h2>Your Personalized Playlist</h2>
-                    <div class="playlist-meta">
-                        <span id="playlistTitle" class="playlist-title"></span>
-                    </div>
-                </div>
-
-                <div id="tracksList" class="tracks-list">
-                    <!-- Tracks will be populated here -->
-                </div>
-            </div>
-        </main>
-
-        <footer class="footer">
-            <p>Powered by Spotify API • Made with 🎵 for music lovers</p>
-        </footer>
-    </div>
-
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-</body>
-</html>
+{% block scripts %}
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel" src="{{ url_for('static', filename='js/script.js', v='20260412-v3') }}"></script>
+{% endblock %}
