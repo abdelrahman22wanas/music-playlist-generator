@@ -136,13 +136,6 @@ const state = {
   showColorPicker: false,
   showShareModal: false,
   autoPlayPreview: true,
-  useTrendingBoost: false,
-  topArtistFilter: '',
-  userInsights: {
-    topTracks: [],
-    topArtists: [],
-    loaded: false,
-  },
   isLoading: false,
   error: '',
   hiddenTracks: new Set(),
@@ -264,11 +257,6 @@ function getFilteredAndSortedPlaylist() {
     );
   }
 
-  if (state.topArtistFilter.trim()) {
-    const artistQuery = state.topArtistFilter.toLowerCase();
-    filtered = filtered.filter(track => (track.artist || '').toLowerCase().includes(artistQuery));
-  }
-  
   // Apply audio feature filters
   filtered = filtered.filter(track => {
     const energy = (track.audio_features && track.audio_features.energy) || 0.5;
@@ -601,39 +589,10 @@ async function refreshAuth() {
     const res = await fetch('/api/auth/status');
     const data = await res.json();
     state.auth = { authenticated: !!data.authenticated, user: data.user || null };
-    if (state.auth.authenticated) {
-      await loadUserInsights();
-    } else {
-      state.userInsights = { topTracks: [], topArtists: [], loaded: false };
-      state.useTrendingBoost = false;
-      state.topArtistFilter = '';
-    }
   } catch (error) {
     state.auth = { authenticated: false, user: null };
-    state.userInsights = { topTracks: [], topArtists: [], loaded: false };
-    state.useTrendingBoost = false;
-    state.topArtistFilter = '';
   }
   render();
-}
-
-async function loadUserInsights() {
-  try {
-    const res = await fetch('/api/user-insights');
-    const data = await res.json();
-    if (!res.ok || !data.authenticated) {
-      state.userInsights = { topTracks: [], topArtists: [], loaded: true };
-      return;
-    }
-
-    state.userInsights = {
-      topTracks: data.top_tracks || [],
-      topArtists: data.top_artists || [],
-      loaded: true,
-    };
-  } catch (error) {
-    state.userInsights = { topTracks: [], topArtists: [], loaded: true };
-  }
 }
 
 function userAvatarMarkup() {
@@ -667,8 +626,6 @@ async function generate(payload = null) {
     time_of_day: state.timeOfDay,
     discovery_bias: Number(state.discoveryBias),
     intensity_bias: Number(state.intensityBias),
-    use_trending: !!state.useTrendingBoost,
-    top_artist_filter: state.topArtistFilter || '',
     exclude_track_ids: Array.from(state.hiddenTracks),
     exclude_artist_names: Array.from(state.hiddenArtists),
   };
@@ -720,8 +677,6 @@ function quickSurprise() {
     time_of_day: pick(TIMES),
     discovery_bias: Number(state.discoveryBias),
     intensity_bias: Number(state.intensityBias),
-    use_trending: !!state.useTrendingBoost,
-    top_artist_filter: state.topArtistFilter || '',
     exclude_track_ids: Array.from(state.hiddenTracks),
     exclude_artist_names: Array.from(state.hiddenArtists),
   };
@@ -835,18 +790,6 @@ function playlistMarkup() {
         </select>
         <button type="button" class="mpg3-btn" data-action="shuffle-btn">🔀 Shuffle</button>
       </div>
-
-      <div class="mpg3-row mpg3-control-row">
-        <button type="button" class="mpg3-btn ${state.useTrendingBoost ? 'is-current' : ''}" data-action="toggle-trending-boost" ${state.auth.authenticated ? '' : 'disabled'} title="Use your top tracks as extra playlist signals">
-          ${state.useTrendingBoost ? '🔥 Trending On' : '🔥 Trending Off'}
-        </button>
-        <select class="mpg3-select" data-action="set-top-artist-filter" ${state.auth.authenticated && state.userInsights.topArtists.length ? '' : 'disabled'}>
-          <option value="">Top Artists: All</option>
-          ${(state.userInsights.topArtists || []).map(artist => `<option value="${escapeHtml(artist.name)}" ${state.topArtistFilter === artist.name ? 'selected' : ''}>${escapeHtml(artist.name)}</option>`).join('')}
-        </select>
-      </div>
-
-      ${!state.auth.authenticated ? '<div class="mpg3-empty">Sign in with Spotify to enable trending and top-artist personalization.</div>' : ''}
 
       <div class="mpg3-stats">
         <span>${escapeHtml(stats.tracks)} tracks</span>
@@ -1065,7 +1008,7 @@ function handleRootEvent(event) {
 
   // Native <select> opens on click; re-rendering on click collapses the menu.
   // Handle these on input/change only.
-  if (event.type === 'click' && (action === 'set-sort' || action === 'set-top-artist-filter')) {
+  if (event.type === 'click' && action === 'set-sort') {
     return;
   }
 
@@ -1333,21 +1276,6 @@ function handleRootEvent(event) {
     return;
   }
 
-  if (action === 'toggle-trending-boost') {
-    if (!state.auth.authenticated) {
-      setToast('Sign in to use trending integration');
-      return;
-    }
-    state.useTrendingBoost = !state.useTrendingBoost;
-    render();
-    return;
-  }
-
-  if (action === 'set-top-artist-filter') {
-    state.topArtistFilter = target.value || '';
-    render();
-    return;
-  }
 }
 
 function handleKeydown(event) {
