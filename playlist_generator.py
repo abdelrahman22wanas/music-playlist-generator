@@ -1,6 +1,7 @@
 """Core playlist generation logic."""
 import random
 from collections import deque
+from datetime import datetime
 from config import (
     MOOD_CHARACTERISTICS,
     ACTIVITY_CHARACTERISTICS,
@@ -24,6 +25,36 @@ class PlaylistGenerator:
     @staticmethod
     def _clamp(value, low=0.0, high=1.0):
         return max(low, min(high, value))
+
+    @staticmethod
+    def _parse_release_date(track):
+        """Return a sortable release date for a Spotify track."""
+        album = track.get('album') or {}
+        release_date = album.get('release_date')
+        precision = (album.get('release_date_precision') or 'day').lower()
+
+        if not release_date:
+            return datetime.min
+
+        try:
+            if precision == 'year':
+                return datetime.strptime(release_date, '%Y')
+            if precision == 'month':
+                return datetime.strptime(release_date, '%Y-%m')
+            return datetime.strptime(release_date, '%Y-%m-%d')
+        except ValueError:
+            return datetime.min
+
+    def _order_candidates_by_recency(self, candidates):
+        """Prefer newest tracks first while keeping popularity as a tie-breaker."""
+        return sorted(
+            candidates,
+            key=lambda track: (
+                self._parse_release_date(track),
+                track.get('popularity', 0) or 0,
+            ),
+            reverse=True,
+        )
     
     def get_playlist_params(self, mood, activity, time_of_day):
         """
@@ -112,11 +143,12 @@ class PlaylistGenerator:
                 source_tracks = self._search_fallback_tracks(params['seed_genres'], discovery_bias=float(discovery_bias))
 
             source_tracks = self._pick_diverse_tracks(
-                source_tracks,
+                self._order_candidates_by_recency(source_tracks),
                 PLAYLIST_SIZE,
                 avoid_recent=True,
                 exclude_track_ids=exclude_track_ids,
                 exclude_artist_names=exclude_artist_names,
+                prefer_newest=True,
             )
 
             # If anti-repeat filters make the set too small, top it up from fallback candidates.
@@ -129,11 +161,12 @@ class PlaylistGenerator:
                         source_tracks.append(track)
                         existing_ids.add(track_id)
                 source_tracks = self._pick_diverse_tracks(
-                    source_tracks,
+                    self._order_candidates_by_recency(source_tracks),
                     PLAYLIST_SIZE,
                     avoid_recent=True,
                     exclude_track_ids=exclude_track_ids,
                     exclude_artist_names=exclude_artist_names,
+                    prefer_newest=True,
                 )
 
             self._remember_tracks(source_tracks)
@@ -222,9 +255,11 @@ class PlaylistGenerator:
         avoid_recent=False,
         exclude_track_ids=None,
         exclude_artist_names=None,
+        prefer_newest=False,
     ):
         """Select tracks with better artist variety before filling the rest."""
-        random.shuffle(candidates)
+        if not prefer_newest:
+            random.shuffle(candidates)
 
         selected = []
         used_track_ids = set()

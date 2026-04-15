@@ -176,6 +176,48 @@ async function generate(payload = null) {
   }
 }
 
+async function saveToSpotify() {
+  if (!state.playlist.length) {
+    setToast('Generate a playlist first');
+    return;
+  }
+
+  if (!state.auth.authenticated) {
+    setToast('Sign in with Spotify to save playlists');
+    return;
+  }
+
+  state.error = '';
+  state.isLoading = true;
+  render();
+
+  try {
+    const res = await fetch('/api/save-playlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playlist: state.playlist,
+        metadata: state.meta,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Could not save playlist.');
+    }
+
+    const savedName = (data.playlist && data.playlist.name) || 'Spotify playlist';
+    setToast(`Saved to Spotify: ${savedName}`);
+    if (data.playlist && data.playlist.url) {
+      state.spotifyPlaylistUrl = data.playlist.url;
+    }
+  } catch (error) {
+    state.error = error.message || 'Unexpected error';
+  } finally {
+    state.isLoading = false;
+    render();
+  }
+}
+
 function quickSurprise() {
   const pick = (items) => items[Math.floor(Math.random() * items.length)].key;
   const next = {
@@ -375,6 +417,7 @@ function render() {
 
         <div class="mpg3-row mpg3-actions">
           <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="generate" ${state.isLoading ? 'disabled' : ''}>${state.isLoading ? 'Generating...' : 'Generate'}</button>
+          <button type="button" class="mpg3-btn" data-action="save" ${state.isLoading || !state.playlist.length ? 'disabled' : ''}>${state.auth.authenticated ? 'Save to Spotify' : 'Sign in to Save'}</button>
           <button type="button" class="mpg3-btn" data-action="surprise">Surprise</button>
           <button type="button" class="mpg3-btn" data-action="reset-hidden">Reset Hidden</button>
         </div>
@@ -447,6 +490,11 @@ function handleRootEvent(event) {
 
   if (action === 'generate') {
     generate();
+    return;
+  }
+
+  if (action === 'save') {
+    saveToSpotify();
     return;
   }
 

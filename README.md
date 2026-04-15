@@ -6,6 +6,7 @@ Generate personalized Spotify playlists based on mood, activity, and time of day
 
 - Playlist generation from mood, activity, and time inputs
 - Spotify user sign-in support for personalized actions
+- Save generated playlists to your Spotify account
 - Flask API backend with HTML/CSS/JavaScript frontend
 - Health endpoint for deployment checks
 - Docker, Render, and Windows desktop packaging support
