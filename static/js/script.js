@@ -1063,6 +1063,12 @@ function handleRootEvent(event) {
   const action = target.dataset.action;
   const value = target.dataset.value;
 
+  // Native <select> opens on click; re-rendering on click collapses the menu.
+  // Handle these on input/change only.
+  if (event.type === 'click' && (action === 'set-sort' || action === 'set-top-artist-filter')) {
+    return;
+  }
+
   if (action === 'noop') {
     return;
   }
@@ -1396,6 +1402,7 @@ function init() {
   const root = document.getElementById('appRoot');
   root.addEventListener('click', handleRootEvent);
   root.addEventListener('input', handleRootEvent);
+  root.addEventListener('change', handleRootEvent);
   window.addEventListener('keydown', handleKeydown);
 }
 
