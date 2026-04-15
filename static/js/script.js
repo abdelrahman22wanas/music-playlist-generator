@@ -29,6 +29,7 @@ const THEMES = [
 const STORE = {
   theme: 'mpg_theme_v3',
   history: 'mpg_history_v3',
+  pendingSave: 'mpg_pending_save_v1',
 };
 
 function cap(text) {
@@ -129,6 +130,26 @@ async function refreshAuth() {
   render();
 }
 
+function getPendingSave() {
+  const raw = localStorage.getItem(STORE.pendingSave);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn(error);
+    return null;
+  }
+}
+
+function clearPendingSave() {
+  localStorage.removeItem(STORE.pendingSave);
+}
+
+function setPendingSave(payload) {
+  localStorage.setItem(STORE.pendingSave, JSON.stringify(payload));
+}
+
 async function generate(payload = null) {
   state.error = '';
   state.isLoading = true;
@@ -176,14 +197,19 @@ async function generate(payload = null) {
   }
 }
 
-async function saveToSpotify() {
-  if (!state.playlist.length) {
+async function saveToSpotify(payload = null) {
+  const playlist = payload?.playlist || state.playlist;
+  const metadata = payload?.metadata || state.meta;
+
+  if (!playlist.length) {
     setToast('Generate a playlist first');
     return;
   }
 
   if (!state.auth.authenticated) {
-    setToast('Sign in with Spotify to save playlists');
+    setPendingSave({ playlist, metadata });
+    setToast('Redirecting to Spotify sign-in');
+    window.location.href = '/auth/spotify/login';
     return;
   }
 
@@ -196,8 +222,8 @@ async function saveToSpotify() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        playlist: state.playlist,
-        metadata: state.meta,
+        playlist,
+        metadata,
       }),
     });
     const data = await res.json();
@@ -210,6 +236,7 @@ async function saveToSpotify() {
     if (data.playlist && data.playlist.url) {
       state.spotifyPlaylistUrl = data.playlist.url;
     }
+    clearPendingSave();
   } catch (error) {
     state.error = error.message || 'Unexpected error';
   } finally {
@@ -566,6 +593,16 @@ function init() {
   loadState();
   render();
   refreshAuth();
+
+  const pendingSave = getPendingSave();
+  if (pendingSave) {
+    refreshAuth().then(() => {
+      if (state.auth.authenticated) {
+        clearPendingSave();
+        saveToSpotify(pendingSave);
+      }
+    });
+  }
 
   const root = document.getElementById('appRoot');
   root.addEventListener('click', handleRootEvent);
