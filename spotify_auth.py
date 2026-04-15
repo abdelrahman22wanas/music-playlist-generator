@@ -9,20 +9,42 @@ from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 APP_CONFIG_FOLDER = 'MusicPlaylistGenerator'
 
 
+def _clean_env_value(value):
+    """Normalize env values by trimming whitespace and surrounding quotes."""
+    if value is None:
+        return ''
+    cleaned = str(value).strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {'"', "'"}:
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
 def _get_env_candidates():
     """Return candidate .env locations ordered by priority."""
     candidates = []
 
+    explicit_env = os.getenv('MUSIC_PLAYLIST_ENV_PATH')
+    if explicit_env:
+        candidates.append(Path(explicit_env).expanduser())
+
     appdata = os.getenv('APPDATA')
-    if appdata:
-        candidates.append(Path(appdata) / APP_CONFIG_FOLDER / '.env')
+    appdata_env = Path(appdata) / APP_CONFIG_FOLDER / '.env' if appdata else None
 
     exe_dir = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else None
-    if exe_dir:
-        candidates.append(exe_dir / '.env')
+    exe_env = exe_dir / '.env' if exe_dir else None
+    cwd_env = Path.cwd() / '.env'
+    repo_env = Path(__file__).resolve().parent / '.env'
 
-    candidates.append(Path.cwd() / '.env')
-    candidates.append(Path(__file__).resolve().parent / '.env')
+    # Development should prefer local project env files over global AppData values.
+    if getattr(sys, 'frozen', False):
+        ordered = [appdata_env, exe_env, cwd_env, repo_env]
+    else:
+        ordered = [cwd_env, repo_env, appdata_env, exe_env]
+
+    for candidate in ordered:
+        if candidate:
+            candidates.append(candidate)
+
     return candidates
 
 
@@ -52,16 +74,16 @@ def _get_oauth_config(redirect_uri_override=None):
         or 'http://127.0.0.1:5000/auth/spotify/callback'
     )
 
-    client_id = (
+    client_id = _clean_env_value(
         os.getenv('SPOTIFY_CLIENT_ID')
         or os.getenv('SPOTIPY_CLIENT_ID')
         or ''
-    ).strip()
-    client_secret = (
+    )
+    client_secret = _clean_env_value(
         os.getenv('SPOTIFY_CLIENT_SECRET')
         or os.getenv('SPOTIPY_CLIENT_SECRET')
         or ''
-    ).strip()
+    )
 
     if not client_id or not client_secret:
         raise ValueError(
@@ -128,12 +150,12 @@ class SpotifyManager:
     def __init__(self):
         if not self._initialized:
             try:
-                spotify_client_id = (
+                spotify_client_id = _clean_env_value(
                     os.getenv('SPOTIFY_CLIENT_ID') or os.getenv('SPOTIPY_CLIENT_ID') or ''
-                ).strip()
-                spotify_client_secret = (
+                )
+                spotify_client_secret = _clean_env_value(
                     os.getenv('SPOTIFY_CLIENT_SECRET') or os.getenv('SPOTIPY_CLIENT_SECRET') or ''
-                ).strip()
+                )
 
                 if not spotify_client_id or not spotify_client_secret:
                     raise ValueError(

@@ -1,5 +1,3 @@
-const { useEffect, useMemo, useRef, useState } = React;
-
 const MOODS = [
   { key: 'happy', label: 'Happy', icon: '😊' },
   { key: 'sad', label: 'Sad', icon: '😔' },
@@ -54,366 +52,477 @@ function download(name, body, type) {
   URL.revokeObjectURL(href);
 }
 
-function Segments({ title, items, value, onChange }) {
-  return (
-    <section className="mpg3-card">
-      <h3>{title}</h3>
-      <div className="mpg3-grid">
-        {items.map(item => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => onChange(item.key)}
-            className={`mpg3-pill ${value === item.key ? 'is-active' : ''}`}
-          >
-            <span className="mpg3-pill-icon">{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-function App() {
-  const [theme, setTheme] = useState('ocean');
-  const [auth, setAuth] = useState({ authenticated: false, user: null });
+const state = {
+  theme: 'ocean',
+  auth: { authenticated: false, user: null },
+  mood: 'happy',
+  activity: 'study',
+  timeOfDay: 'evening',
+  discoveryBias: 0,
+  intensityBias: 0,
+  playlist: [],
+  meta: null,
+  explain: null,
+  history: [],
+  isLoading: false,
+  error: '',
+  hiddenTracks: new Set(),
+  hiddenArtists: new Set(),
+  toast: '',
+  audio: null,
+};
 
-  const [mood, setMood] = useState('happy');
-  const [activity, setActivity] = useState('study');
-  const [timeOfDay, setTimeOfDay] = useState('evening');
-  const [discoveryBias, setDiscoveryBias] = useState(0);
-  const [intensityBias, setIntensityBias] = useState(0);
+function titleText() {
+  if (!state.meta) {
+    return 'Choose your vibe and generate.';
+  }
+  return `${cap(state.meta.mood)} ${cap(state.meta.activity)} - ${cap(state.meta.time_of_day)}`;
+}
 
-  const [playlist, setPlaylist] = useState([]);
-  const [meta, setMeta] = useState(null);
-  const [explain, setExplain] = useState(null);
-  const [history, setHistory] = useState([]);
+function setToast(message) {
+  state.toast = message;
+  render();
+  window.clearTimeout(state.toastTimer);
+  state.toastTimer = window.setTimeout(() => {
+    state.toast = '';
+    render();
+  }, 2200);
+}
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+function saveHistory() {
+  localStorage.setItem(STORE.history, JSON.stringify(state.history));
+}
 
-  const [hiddenTracks, setHiddenTracks] = useState(new Set());
-  const [hiddenArtists, setHiddenArtists] = useState(new Set());
-
-  const [toast, setToast] = useState('');
-  const audioRef = useRef(null);
-
-  const title = useMemo(() => {
-    if (!meta) return 'Choose your vibe and generate.';
-    return `${cap(meta.mood)} ${cap(meta.activity)} - ${cap(meta.time_of_day)}`;
-  }, [meta]);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem(STORE.theme);
-    const savedHistory = localStorage.getItem(STORE.history);
-    if (savedTheme) setTheme(savedTheme);
-    if (savedHistory) {
-      try {
-        setHistory(JSON.parse(savedHistory));
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-    refreshAuth();
-  }, []);
-
-  useEffect(() => {
-    document.body.dataset.theme = theme;
-    localStorage.setItem(STORE.theme, theme);
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem(STORE.history, JSON.stringify(history));
-  }, [history]);
-
-  useEffect(() => {
-    if (!toast) return undefined;
-    const t = setTimeout(() => setToast(''), 2200);
-    return () => clearTimeout(t);
-  }, [toast]);
-
-  useEffect(() => {
-    function onKey(ev) {
-      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter' && !isLoading) {
-        ev.preventDefault();
-        generate();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [mood, activity, timeOfDay, discoveryBias, intensityBias, hiddenTracks, hiddenArtists, isLoading]);
-
-  async function refreshAuth() {
+function loadState() {
+  const savedTheme = localStorage.getItem(STORE.theme);
+  const savedHistory = localStorage.getItem(STORE.history);
+  if (savedTheme) {
+    state.theme = savedTheme;
+  }
+  if (savedHistory) {
     try {
-      const res = await fetch('/api/auth/status');
-      const data = await res.json();
-      setAuth({ authenticated: !!data.authenticated, user: data.user || null });
-    } catch (_) {
-      setAuth({ authenticated: false, user: null });
+      state.history = JSON.parse(savedHistory) || [];
+    } catch (error) {
+      console.warn(error);
     }
   }
+  document.body.dataset.theme = state.theme;
+}
 
-  async function generate(payload = null) {
-    setError('');
-    setIsLoading(true);
+async function refreshAuth() {
+  try {
+    const res = await fetch('/api/auth/status');
+    const data = await res.json();
+    state.auth = { authenticated: !!data.authenticated, user: data.user || null };
+  } catch (error) {
+    state.auth = { authenticated: false, user: null };
+  }
+  render();
+}
 
-    const requestPayload = payload || {
-      mood,
-      activity,
-      time_of_day: timeOfDay,
-      discovery_bias: Number(discoveryBias),
-      intensity_bias: Number(intensityBias),
-      exclude_track_ids: Array.from(hiddenTracks),
-      exclude_artist_names: Array.from(hiddenArtists),
-    };
+async function generate(payload = null) {
+  state.error = '';
+  state.isLoading = true;
+  render();
 
-    try {
-      const res = await fetch('/api/generate-playlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Could not generate playlist.');
-      }
-      const filtered = (data.playlist || []).filter(track => !hiddenTracks.has(track.id));
-      setPlaylist(filtered);
-      setMeta(data.metadata || null);
-      setExplain(data.explanation || null);
-      setHistory(prev => [{
-        mood: requestPayload.mood,
-        activity: requestPayload.activity,
-        time_of_day: requestPayload.time_of_day,
-        discovery_bias: requestPayload.discovery_bias,
-        intensity_bias: requestPayload.intensity_bias,
-        ts: Date.now(),
-      }, ...prev].slice(0, 8));
-      setToast('Playlist ready');
-    } catch (e) {
-      setError(e.message || 'Unexpected error');
-    } finally {
-      setIsLoading(false);
+  const requestPayload = payload || {
+    mood: state.mood,
+    activity: state.activity,
+    time_of_day: state.timeOfDay,
+    discovery_bias: Number(state.discoveryBias),
+    intensity_bias: Number(state.intensityBias),
+    exclude_track_ids: Array.from(state.hiddenTracks),
+    exclude_artist_names: Array.from(state.hiddenArtists),
+  };
+
+  try {
+    const res = await fetch('/api/generate-playlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestPayload),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Could not generate playlist.');
     }
+
+    state.playlist = (data.playlist || []).filter(track => !state.hiddenTracks.has(track.id));
+    state.meta = data.metadata || null;
+    state.explain = data.explanation || null;
+    state.history = [{
+      mood: requestPayload.mood,
+      activity: requestPayload.activity,
+      time_of_day: requestPayload.time_of_day,
+      discovery_bias: requestPayload.discovery_bias,
+      intensity_bias: requestPayload.intensity_bias,
+      ts: Date.now(),
+    }, ...state.history].slice(0, 8);
+    saveHistory();
+    setToast('Playlist ready');
+  } catch (error) {
+    state.error = error.message || 'Unexpected error';
+  } finally {
+    state.isLoading = false;
+    render();
+  }
+}
+
+function quickSurprise() {
+  const pick = (items) => items[Math.floor(Math.random() * items.length)].key;
+  const next = {
+    mood: pick(MOODS),
+    activity: pick(ACTIVITIES),
+    time_of_day: pick(TIMES),
+    discovery_bias: Number(state.discoveryBias),
+    intensity_bias: Number(state.intensityBias),
+    exclude_track_ids: Array.from(state.hiddenTracks),
+    exclude_artist_names: Array.from(state.hiddenArtists),
+  };
+  state.mood = next.mood;
+  state.activity = next.activity;
+  state.timeOfDay = next.time_of_day;
+  generate(next);
+}
+
+function hideTrack(trackId) {
+  if (!trackId) return;
+  state.hiddenTracks.add(trackId);
+  state.playlist = state.playlist.filter(track => track.id !== trackId);
+  setToast('Track hidden');
+  render();
+}
+
+function hideArtist(name) {
+  if (!name) return;
+  const key = name.toLowerCase();
+  state.hiddenArtists.add(key);
+  state.playlist = state.playlist.filter(track => !(track.artist || '').toLowerCase().includes(key));
+  setToast('Artist hidden');
+  render();
+}
+
+function preview(url) {
+  if (!url) {
+    setToast('No preview available');
+    return;
+  }
+  if (state.audio) {
+    state.audio.pause();
+  }
+  state.audio = new Audio(url);
+  state.audio.play().catch(() => setToast('Preview failed'));
+}
+
+function exportAs(format) {
+  if (!state.playlist.length) {
+    setToast('Generate first');
+    return;
   }
 
-  function quickSurprise() {
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)].key;
-    const next = {
-      mood: pick(MOODS),
-      activity: pick(ACTIVITIES),
-      time_of_day: pick(TIMES),
-      discovery_bias: Number(discoveryBias),
-      intensity_bias: Number(intensityBias),
-      exclude_track_ids: Array.from(hiddenTracks),
-      exclude_artist_names: Array.from(hiddenArtists),
-    };
-    setMood(next.mood);
-    setActivity(next.activity);
-    setTimeOfDay(next.time_of_day);
-    generate(next);
+  const base = `${state.mood}-${state.activity}-${Date.now()}`;
+  if (format === 'json') {
+    download(`${base}.json`, JSON.stringify(state.playlist, null, 2), 'application/json');
+    return;
   }
 
-  function hideTrack(trackId) {
-    if (!trackId) return;
-    setHiddenTracks(prev => new Set(prev).add(trackId));
-    setPlaylist(prev => prev.filter(t => t.id !== trackId));
+  if (format === 'csv') {
+    const header = 'name,artist,album,duration_ms,popularity,spotify_url';
+    const rows = state.playlist.map(track => [
+      track.name,
+      track.artist,
+      track.album,
+      track.duration_ms,
+      track.popularity,
+      (track.external_urls && track.external_urls.spotify) || '',
+    ].map(value => `"${String(value || '').replace(/"/g, '""')}"`).join(','));
+    download(`${base}.csv`, [header, ...rows].join('\n'), 'text/csv');
+    return;
   }
 
-  function hideArtist(name) {
-    if (!name) return;
-    const key = name.toLowerCase();
-    setHiddenArtists(prev => new Set(prev).add(key));
-    setPlaylist(prev => prev.filter(t => !(t.artist || '').toLowerCase().includes(key)));
+  const txt = state.playlist.map((track, index) => `${index + 1}. ${track.name} - ${track.artist}`).join('\n');
+  download(`${base}.txt`, txt, 'text/plain');
+}
+
+function cardButtons(items, selectedKey, action) {
+  return items.map(item => `
+    <button type="button" class="mpg3-pill ${selectedKey === item.key ? 'is-active' : ''}" data-action="${action}" data-value="${item.key}">
+      <span class="mpg3-pill-icon">${escapeHtml(item.icon)}</span>
+      <span>${escapeHtml(item.label)}</span>
+    </button>
+  `).join('');
+}
+
+function playlistMarkup() {
+  if (state.isLoading) {
+    return `
+      <div class="mpg3-track-list">
+        ${Array.from({ length: 6 }).map(() => `
+          <div class="mpg3-track mpg3-skeleton">
+            <div class="mpg3-cover"></div>
+            <div class="mpg3-lines"><span></span><span></span><span></span></div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
-  function preview(url) {
-    if (!url) {
-      setToast('No preview available');
-      return;
-    }
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    audio.play().catch(() => setToast('Preview failed'));
+  if (!state.playlist.length) {
+    return '<div class="mpg3-empty">No tracks yet. Hit Generate to build your playlist.</div>';
   }
 
-  function exportAs(fmt) {
-    if (!playlist.length) {
-      setToast('Generate first');
-      return;
-    }
-    const base = `${mood}-${activity}-${Date.now()}`;
-    if (fmt === 'json') {
-      download(`${base}.json`, JSON.stringify(playlist, null, 2), 'application/json');
-      return;
-    }
-    if (fmt === 'csv') {
-      const header = 'name,artist,album,duration_ms,popularity,spotify_url';
-      const rows = playlist.map(t => [
-        t.name,
-        t.artist,
-        t.album,
-        t.duration_ms,
-        t.popularity,
-        (t.external_urls && t.external_urls.spotify) || '',
-      ].map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
-      download(`${base}.csv`, [header, ...rows].join('\n'), 'text/csv');
-      return;
-    }
-    const txt = playlist.map((t, i) => `${i + 1}. ${t.name} - ${t.artist}`).join('\n');
-    download(`${base}.txt`, txt, 'text/plain');
+  return `
+    <div class="mpg3-track-list">
+      ${state.playlist.map((track, index) => {
+        const firstArtist = (track.artist || '').split(',')[0].trim();
+        return `
+          <article class="mpg3-track">
+            <img class="mpg3-cover" src="${escapeHtml(track.image || 'https://via.placeholder.com/72')}" alt="${escapeHtml(track.name)}">
+            <div class="mpg3-meta">
+              <strong>${index + 1}. ${escapeHtml(track.name)}</strong>
+              <span>${escapeHtml(track.artist)}</span>
+              <small>${escapeHtml(track.album)}</small>
+              <div class="mpg3-row">
+                <button type="button" class="mpg3-chip" data-action="hide-track" data-value="${escapeHtml(track.id || '')}">Hide Track</button>
+                <button type="button" class="mpg3-chip" data-action="hide-artist" data-value="${escapeHtml(firstArtist)}">Hide Artist</button>
+              </div>
+            </div>
+            <div class="mpg3-side">
+              <span>${mmss(track.duration_ms)}</span>
+              ${track.preview_url ? `<button type="button" class="mpg3-btn mpg3-btn-play" data-action="preview" data-value="${escapeHtml(track.preview_url)}">Play</button>` : ''}
+            </div>
+          </article>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function historyMarkup() {
+  if (!state.history.length) {
+    return '';
   }
 
-  return (
-    <div className="mpg3-shell">
-      <aside className="mpg3-left">
-        <div className="mpg3-brand">
-          <p className="mpg3-tag">React UI v3</p>
+  return `
+    <section class="mpg3-history">
+      <h3>Recent Sessions</h3>
+      <div class="mpg3-row">
+        ${state.history.map(item => `
+          <button type="button" class="mpg3-btn" data-action="history" data-value='${escapeHtml(JSON.stringify(item))}'>
+            ${escapeHtml(cap(item.mood))} - ${escapeHtml(cap(item.activity))} - ${escapeHtml(cap(item.time_of_day))}
+          </button>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function render() {
+  const root = document.getElementById('appRoot');
+  if (!root) return;
+
+  document.body.dataset.theme = state.theme;
+  root.innerHTML = `
+    <div class="mpg3-shell">
+      <aside class="mpg3-left">
+        <div class="mpg3-brand">
+          <p class="mpg3-tag">Vanilla JS UI</p>
           <h1>Mood Playlist Generator</h1>
           <p>Create focused, stylish playlists from your current context.</p>
-          <div className="mpg3-auth">
-            <span>{auth.authenticated ? `Signed in as ${(auth.user && auth.user.display_name) || 'Spotify User'}` : 'Not signed in'}</span>
-            {!auth.authenticated ? (
-              <a className="mpg3-btn mpg3-btn-primary" href="/auth/spotify/login">Sign in with Spotify</a>
-            ) : (
-              <a className="mpg3-btn" href="/auth/spotify/logout">Sign out</a>
-            )}
+          <div class="mpg3-auth">
+            <span>${state.auth.authenticated ? `Signed in as ${escapeHtml((state.auth.user && state.auth.user.display_name) || 'Spotify User')}` : 'Not signed in'}</span>
+            ${state.auth.authenticated ? '<a class="mpg3-btn" href="/auth/spotify/logout">Sign out</a>' : '<a class="mpg3-btn mpg3-btn-primary" href="/auth/spotify/login">Sign in with Spotify</a>'}
           </div>
         </div>
 
-        <Segments title="Mood" items={MOODS} value={mood} onChange={setMood} />
-        <Segments title="Activity" items={ACTIVITIES} value={activity} onChange={setActivity} />
-        <Segments title="Time" items={TIMES} value={timeOfDay} onChange={setTimeOfDay} />
-
-        <section className="mpg3-card">
-          <h3>Refine</h3>
-          <label>Mainstream to Discovery</label>
-          <input className="mpg3-slider" type="range" min="-1" max="1" step="0.1" value={discoveryBias} onChange={(e) => setDiscoveryBias(Number(e.target.value))} />
-          <label>Calm to Intense</label>
-          <input className="mpg3-slider" type="range" min="-1" max="1" step="0.1" value={intensityBias} onChange={(e) => setIntensityBias(Number(e.target.value))} />
+        <section class="mpg3-card">
+          <h3>Mood</h3>
+          <div class="mpg3-grid">${cardButtons(MOODS, state.mood, 'set-mood')}</div>
         </section>
 
-        <section className="mpg3-card">
+        <section class="mpg3-card">
+          <h3>Activity</h3>
+          <div class="mpg3-grid">${cardButtons(ACTIVITIES, state.activity, 'set-activity')}</div>
+        </section>
+
+        <section class="mpg3-card">
+          <h3>Time</h3>
+          <div class="mpg3-grid">${cardButtons(TIMES, state.timeOfDay, 'set-time')}</div>
+        </section>
+
+        <section class="mpg3-card">
+          <h3>Refine</h3>
+          <label for="discoveryBias">Mainstream to Discovery</label>
+          <input id="discoveryBias" class="mpg3-slider" data-action="set-discovery" type="range" min="-1" max="1" step="0.1" value="${escapeHtml(state.discoveryBias)}">
+          <label for="intensityBias">Calm to Intense</label>
+          <input id="intensityBias" class="mpg3-slider" data-action="set-intensity" type="range" min="-1" max="1" step="0.1" value="${escapeHtml(state.intensityBias)}">
+        </section>
+
+        <section class="mpg3-card">
           <h3>Theme</h3>
-          <div className="mpg3-row">
-            {THEMES.map(t => (
-              <button key={t.key} type="button" className={`mpg3-btn ${theme === t.key ? 'is-current' : ''}`} onClick={() => setTheme(t.key)}>{t.label}</button>
-            ))}
+          <div class="mpg3-row">
+            ${THEMES.map(item => `<button type="button" class="mpg3-btn ${state.theme === item.key ? 'is-current' : ''}" data-action="set-theme" data-value="${item.key}">${escapeHtml(item.label)}</button>`).join('')}
           </div>
         </section>
 
-        <div className="mpg3-row mpg3-actions">
-          <button type="button" className="mpg3-btn mpg3-btn-primary" disabled={isLoading} onClick={() => generate()}>
-            {isLoading ? 'Generating...' : 'Generate'}
-          </button>
-          <button type="button" className="mpg3-btn" onClick={quickSurprise}>Surprise</button>
-          <button type="button" className="mpg3-btn" onClick={() => { setHiddenTracks(new Set()); setHiddenArtists(new Set()); setToast('Hidden filters reset'); }}>Reset Hidden</button>
+        <div class="mpg3-row mpg3-actions">
+          <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="generate" ${state.isLoading ? 'disabled' : ''}>${state.isLoading ? 'Generating...' : 'Generate'}</button>
+          <button type="button" class="mpg3-btn" data-action="surprise">Surprise</button>
+          <button type="button" class="mpg3-btn" data-action="reset-hidden">Reset Hidden</button>
         </div>
       </aside>
 
-      <main className="mpg3-right">
-        <div className="mpg3-header-row">
-          <h2>{title}</h2>
-          <div className="mpg3-row">
-            <button type="button" className="mpg3-btn" onClick={() => exportAs('json')}>JSON</button>
-            <button type="button" className="mpg3-btn" onClick={() => exportAs('csv')}>CSV</button>
-            <button type="button" className="mpg3-btn" onClick={() => exportAs('txt')}>Text</button>
+      <main class="mpg3-right">
+        <div class="mpg3-header-row">
+          <h2>${escapeHtml(titleText())}</h2>
+          <div class="mpg3-row">
+            <button type="button" class="mpg3-btn" data-action="export" data-value="json">JSON</button>
+            <button type="button" class="mpg3-btn" data-action="export" data-value="csv">CSV</button>
+            <button type="button" class="mpg3-btn" data-action="export" data-value="txt">Text</button>
           </div>
         </div>
 
-        <div className="mpg3-explain">
-          {explain ? explain.summary : 'Generate a playlist to see explanation details.'}
-        </div>
-
-        {error && <div className="mpg3-error">{error}</div>}
-
-        {isLoading && (
-          <div className="mpg3-track-list">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div className="mpg3-track mpg3-skeleton" key={`sk-${i}`}>
-                <div className="mpg3-cover" />
-                <div className="mpg3-lines">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!isLoading && playlist.length === 0 && (
-          <div className="mpg3-empty">No tracks yet. Hit Generate to build your playlist.</div>
-        )}
-
-        {!isLoading && playlist.length > 0 && (
-          <div className="mpg3-track-list">
-            {playlist.map((t, idx) => {
-              const firstArtist = (t.artist || '').split(',')[0]?.trim();
-              return (
-                <article className="mpg3-track" key={`${t.id || t.name}-${idx}`}>
-                  <img className="mpg3-cover" src={t.image || 'https://via.placeholder.com/72'} alt={t.name} />
-                  <div className="mpg3-meta">
-                    <strong>{idx + 1}. {t.name}</strong>
-                    <span>{t.artist}</span>
-                    <small>{t.album}</small>
-                    <div className="mpg3-row">
-                      <button type="button" className="mpg3-chip" onClick={() => hideTrack(t.id)}>Hide Track</button>
-                      <button type="button" className="mpg3-chip" onClick={() => hideArtist(firstArtist)}>Hide Artist</button>
-                    </div>
-                  </div>
-                  <div className="mpg3-side">
-                    <span>{mmss(t.duration_ms)}</span>
-                    {t.preview_url && <button type="button" className="mpg3-btn mpg3-btn-play" onClick={() => preview(t.preview_url)}>Play</button>}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-
-        {history.length > 0 && (
-          <section className="mpg3-history">
-            <h3>Recent Sessions</h3>
-            <div className="mpg3-row">
-              {history.map(item => (
-                <button
-                  key={item.ts}
-                  type="button"
-                  className="mpg3-btn"
-                  onClick={() => {
-                    setMood(item.mood);
-                    setActivity(item.activity);
-                    setTimeOfDay(item.time_of_day);
-                    setDiscoveryBias(Number(item.discovery_bias || 0));
-                    setIntensityBias(Number(item.intensity_bias || 0));
-                    generate({
-                      mood: item.mood,
-                      activity: item.activity,
-                      time_of_day: item.time_of_day,
-                      discovery_bias: Number(item.discovery_bias || 0),
-                      intensity_bias: Number(item.intensity_bias || 0),
-                      exclude_track_ids: Array.from(hiddenTracks),
-                      exclude_artist_names: Array.from(hiddenArtists),
-                    });
-                  }}
-                >
-                  {cap(item.mood)} - {cap(item.activity)} - {cap(item.time_of_day)}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
+        <div class="mpg3-explain">${escapeHtml(state.explain ? state.explain.summary : 'Generate a playlist to see explanation details.')}</div>
+        ${state.error ? `<div class="mpg3-error">${escapeHtml(state.error)}</div>` : ''}
+        ${playlistMarkup()}
+        ${historyMarkup()}
       </main>
 
-      {toast && <div className="mpg3-toast">{toast}</div>}
+      ${state.toast ? `<div class="mpg3-toast">${escapeHtml(state.toast)}</div>` : ''}
     </div>
-  );
+  `;
 }
 
-ReactDOM.createRoot(document.getElementById('appRoot')).render(<App />);
+function handleRootEvent(event) {
+  const target = event.target.closest('[data-action]');
+  if (!target) return;
+
+  const action = target.dataset.action;
+  const value = target.dataset.value;
+
+  if (action === 'set-mood') {
+    state.mood = value;
+    render();
+    return;
+  }
+
+  if (action === 'set-activity') {
+    state.activity = value;
+    render();
+    return;
+  }
+
+  if (action === 'set-time') {
+    state.timeOfDay = value;
+    render();
+    return;
+  }
+
+  if (action === 'set-theme') {
+    state.theme = value;
+    localStorage.setItem(STORE.theme, value);
+    render();
+    return;
+  }
+
+  if (action === 'set-discovery') {
+    state.discoveryBias = Number(target.value);
+    render();
+    return;
+  }
+
+  if (action === 'set-intensity') {
+    state.intensityBias = Number(target.value);
+    render();
+    return;
+  }
+
+  if (action === 'generate') {
+    generate();
+    return;
+  }
+
+  if (action === 'surprise') {
+    quickSurprise();
+    return;
+  }
+
+  if (action === 'reset-hidden') {
+    state.hiddenTracks = new Set();
+    state.hiddenArtists = new Set();
+    setToast('Hidden filters reset');
+    render();
+    return;
+  }
+
+  if (action === 'export') {
+    exportAs(value);
+    return;
+  }
+
+  if (action === 'hide-track') {
+    hideTrack(value);
+    return;
+  }
+
+  if (action === 'hide-artist') {
+    hideArtist(value);
+    return;
+  }
+
+  if (action === 'preview') {
+    preview(value);
+    return;
+  }
+
+  if (action === 'history') {
+    try {
+      const item = JSON.parse(value);
+      state.mood = item.mood;
+      state.activity = item.activity;
+      state.timeOfDay = item.time_of_day;
+      state.discoveryBias = Number(item.discovery_bias || 0);
+      state.intensityBias = Number(item.intensity_bias || 0);
+      render();
+      generate({
+        mood: item.mood,
+        activity: item.activity,
+        time_of_day: item.time_of_day,
+        discovery_bias: Number(item.discovery_bias || 0),
+        intensity_bias: Number(item.intensity_bias || 0),
+        exclude_track_ids: Array.from(state.hiddenTracks),
+        exclude_artist_names: Array.from(state.hiddenArtists),
+      });
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+}
+
+function handleKeydown(event) {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !state.isLoading) {
+    event.preventDefault();
+    generate();
+  }
+}
+
+function init() {
+  loadState();
+  render();
+  refreshAuth();
+
+  const root = document.getElementById('appRoot');
+  root.addEventListener('click', handleRootEvent);
+  root.addEventListener('input', handleRootEvent);
+  window.addEventListener('keydown', handleKeydown);
+}
+
+document.addEventListener('DOMContentLoaded', init);
