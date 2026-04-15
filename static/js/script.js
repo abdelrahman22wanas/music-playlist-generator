@@ -20,12 +20,6 @@ const TIMES = [
   { key: 'night', label: 'Night', icon: '🌙' },
 ];
 
-const THEMES = [
-  { key: 'ocean', label: 'Ocean' },
-  { key: 'ember', label: 'Ember' },
-  { key: 'graphite', label: 'Graphite' },
-];
-
 const SORT_OPTIONS = [
   { key: 'added', label: 'Recently Added' },
   { key: 'popularity', label: 'Popularity' },
@@ -917,13 +911,6 @@ function render() {
           <input id="intensityBias" class="mpg3-slider" data-action="set-intensity" type="range" min="-1" max="1" step="0.1" value="${escapeHtml(state.intensityBias)}">
         </section>
 
-        <section class="mpg3-card">
-          <h3>Theme</h3>
-          <div class="mpg3-row">
-            ${THEMES.map(item => `<button type="button" class="mpg3-btn ${state.theme === item.key ? 'is-current' : ''}" data-action="set-theme" data-value="${item.key}">${escapeHtml(item.label)}</button>`).join('')}
-          </div>
-        </section>
-
         ${favoritesMarkup()}
 
         <div class="mpg3-row mpg3-actions">
@@ -1006,13 +993,6 @@ function handleRootEvent(event) {
 
   if (action === 'set-time') {
     state.timeOfDay = value;
-    render();
-    return;
-  }
-
-  if (action === 'set-theme') {
-    state.theme = value;
-    localStorage.setItem(STORE.theme, value);
     render();
     return;
   }
