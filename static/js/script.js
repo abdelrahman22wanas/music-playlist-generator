@@ -245,6 +245,23 @@ async function saveToSpotify(payload = null) {
   }
 }
 
+async function resumePendingSave() {
+  const pendingSave = getPendingSave();
+  if (!pendingSave) {
+    return;
+  }
+
+  clearPendingSave();
+  await refreshAuth();
+
+  if (state.auth.authenticated) {
+    await saveToSpotify(pendingSave);
+    return;
+  }
+
+  setPendingSave(pendingSave);
+}
+
 function quickSurprise() {
   const pick = (items) => items[Math.floor(Math.random() * items.length)].key;
   const next = {
@@ -592,17 +609,8 @@ function handleKeydown(event) {
 function init() {
   loadState();
   render();
+  resumePendingSave();
   refreshAuth();
-
-  const pendingSave = getPendingSave();
-  if (pendingSave) {
-    refreshAuth().then(() => {
-      if (state.auth.authenticated) {
-        clearPendingSave();
-        saveToSpotify(pendingSave);
-      }
-    });
-  }
 
   const root = document.getElementById('appRoot');
   root.addEventListener('click', handleRootEvent);

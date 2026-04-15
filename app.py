@@ -106,11 +106,13 @@ def _save_playlist_to_spotify(sp, playlist, metadata=None):
     if not track_uris:
         raise ValueError('No Spotify track URIs were found to save.')
 
+    # Step 1: resolve the current Spotify user so we can create a playlist for that account.
     profile = sp.current_user()
     user_id = profile.get('id')
     if not user_id:
         raise ValueError('Unable to resolve Spotify account id.')
 
+    # Step 2: create a private playlist under the current user's account.
     playlist_name = _build_playlist_name(metadata)
     created_playlist = sp.user_playlist_create(
         user=user_id,
@@ -124,6 +126,7 @@ def _save_playlist_to_spotify(sp, playlist, metadata=None):
     if not playlist_id:
         raise ValueError('Spotify did not return a playlist id.')
 
+    # Step 3: add the generated tracks in batches of up to 100 URIs.
     for chunk in _chunk_items(track_uris, 100):
         sp.playlist_add_items(playlist_id, chunk)
 
@@ -297,6 +300,7 @@ def save_playlist():
         playlist = data.get('playlist') or []
         metadata = data.get('metadata') or {}
 
+        # Step 0: require an authenticated Spotify session with playlist write scopes.
         token_info = session.get('spotify_token_info')
         runtime_redirect_uri = session.get('spotify_redirect_uri')
         sp, refreshed_token = get_user_spotify_client(

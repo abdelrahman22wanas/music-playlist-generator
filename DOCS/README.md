@@ -45,6 +45,20 @@ Then open: **http://localhost:5000** 🎉
 | 🎭 **5 Moods** | Happy, Sad, Energetic, Calm, Party |
 | 🏃 **4 Activities** | Workout, Study, Party, Sleep |
 | ⏰ **4 Time Slots** | Morning, Afternoon, Evening, Night |
+
+## Saving Playlists to Spotify
+
+The Spotify save flow used by this app is:
+
+1. Authenticate with the Authorization Code Flow.
+2. Request playlist write scopes:
+  - `playlist-modify-public`
+  - `playlist-modify-private`
+3. Call `GET /me` to get the current Spotify user id.
+4. Call `POST /me/playlists` to create the playlist.
+5. Call `POST /playlists/{playlist_id}/tracks` to add the generated track URIs, up to 100 at a time.
+
+Playlists are created as private by default.
 | 🎵 **25 Tracks** | Personalized playlist every time |
 | 🔊 **Audio Preview** | Listen to 30-second samples |
 | 📱 **Responsive** | Desktop, tablet, and mobile friendly |

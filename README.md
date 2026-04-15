@@ -11,6 +11,22 @@ Generate personalized Spotify playlists based on mood, activity, and time of day
 - Health endpoint for deployment checks
 - Docker, Render, and Windows desktop packaging support
 
+## Saving Playlists to Spotify
+
+The app follows the Spotify Web API playlist flow:
+
+1. Authenticate with Spotify using the Authorization Code Flow.
+2. Request these scopes:
+   - `playlist-modify-public`
+   - `playlist-modify-private`
+   - `user-read-email`
+   - `user-read-private`
+3. Read the current user profile with `GET /me` to get the user id.
+4. Create a playlist with `POST /me/playlists`.
+5. Add the generated track URIs to that playlist in batches of up to 100 items.
+
+The app saves playlists as private by default.
+
 ## Quick Start (Local)
 
 ### 1. Create and activate a virtual environment
