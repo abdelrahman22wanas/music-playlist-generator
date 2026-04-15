@@ -98,13 +98,13 @@ def _get_oauth_config(redirect_uri_override=None):
 
 
 def get_spotify_oauth(redirect_uri_override=None):
-    """Create OAuth manager for user sign-in and playlist write scopes."""
+    """Create OAuth manager for user sign-in."""
     cfg = _get_oauth_config(redirect_uri_override=redirect_uri_override)
     return SpotifyOAuth(
         client_id=cfg['client_id'],
         client_secret=cfg['client_secret'],
         redirect_uri=cfg['redirect_uri'],
-        scope='user-read-email user-read-private playlist-modify-public playlist-modify-private',
+        scope='user-read-email user-read-private',
         cache_path=None,
         show_dialog=True,
     )

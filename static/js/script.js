@@ -29,7 +29,6 @@ const THEMES = [
 const STORE = {
   theme: 'mpg_theme_v3',
   history: 'mpg_history_v3',
-  pendingSave: 'mpg_pending_save_v1',
 };
 
 function cap(text) {
@@ -64,7 +63,7 @@ function escapeHtml(value) {
 
 const state = {
   theme: 'ocean',
-  auth: { authenticated: false, user: null, needsReauth: false, missingScopes: [] },
+  auth: { authenticated: false, user: null },
   mood: 'happy',
   activity: 'study',
   timeOfDay: 'evening',
@@ -123,36 +122,31 @@ async function refreshAuth() {
   try {
     const res = await fetch('/api/auth/status');
     const data = await res.json();
-    state.auth = {
-      authenticated: !!data.authenticated,
-      user: data.user || null,
-      needsReauth: !!data.needs_reauth,
-      missingScopes: data.missing_scopes || [],
-    };
+    state.auth = { authenticated: !!data.authenticated, user: data.user || null };
   } catch (error) {
-    state.auth = { authenticated: false, user: null, needsReauth: false, missingScopes: [] };
+    state.auth = { authenticated: false, user: null };
   }
   render();
 }
 
-function getPendingSave() {
-  const raw = localStorage.getItem(STORE.pendingSave);
-  if (!raw) return null;
+function userAvatarMarkup() {
+  const user = state.auth.user || {};
+  const name = user.display_name || user.id || 'Spotify User';
+  const initial = name.charAt(0).toUpperCase();
+  const profileUrl = user.profile_url || '';
+  const avatarTitle = `${name}${profileUrl ? ' - open Spotify profile' : ''}`;
 
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    console.warn(error);
-    return null;
+  if (user.image_url) {
+    const avatar = `<img class="mpg3-avatar" src="${escapeHtml(user.image_url)}" alt="${escapeHtml(name)} profile photo">`;
+    return profileUrl
+      ? `<a class="mpg3-avatar-link" href="${escapeHtml(profileUrl)}" target="_blank" rel="noreferrer noopener" title="${escapeHtml(avatarTitle)}">${avatar}</a>`
+      : `<span class="mpg3-avatar-link" title="${escapeHtml(avatarTitle)}">${avatar}</span>`;
   }
-}
 
-function clearPendingSave() {
-  localStorage.removeItem(STORE.pendingSave);
-}
-
-function setPendingSave(payload) {
-  localStorage.setItem(STORE.pendingSave, JSON.stringify(payload));
+  const fallback = `<div class="mpg3-avatar mpg3-avatar-fallback" aria-hidden="true">${escapeHtml(initial)}</div>`;
+  return profileUrl
+    ? `<a class="mpg3-avatar-link" href="${escapeHtml(profileUrl)}" target="_blank" rel="noreferrer noopener" title="${escapeHtml(avatarTitle)}">${fallback}</a>`
+    : `<span class="mpg3-avatar-link" title="${escapeHtml(avatarTitle)}">${fallback}</span>`;
 }
 
 async function generate(payload = null) {
@@ -202,78 +196,6 @@ async function generate(payload = null) {
   }
 }
 
-async function saveToSpotify(payload = null) {
-  const playlist = payload?.playlist || state.playlist;
-  const metadata = payload?.metadata || state.meta;
-
-  if (!playlist.length) {
-    setToast('Generate a playlist first');
-    return;
-  }
-
-  if (!state.auth.authenticated) {
-    setPendingSave({ playlist, metadata });
-    setToast(state.auth.needsReauth ? 'Reconnecting Spotify to refresh playlist permissions' : 'Redirecting to Spotify sign-in');
-    window.location.href = '/auth/spotify/login';
-    return;
-  }
-
-  state.error = '';
-  state.isLoading = true;
-  render();
-
-  try {
-    const res = await fetch('/api/save-playlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playlist,
-        metadata,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      if (res.status === 401 && data.details) {
-        setPendingSave({ playlist, metadata });
-        setToast('Reconnecting Spotify to approve playlist saving');
-        window.location.href = '/auth/spotify/login';
-        return;
-      }
-
-      const message = data.details ? `${data.error || 'Could not save playlist.'} (${data.details})` : (data.error || 'Could not save playlist.');
-      throw new Error(message);
-    }
-
-    const savedName = (data.playlist && data.playlist.name) || 'Spotify playlist';
-    setToast(`Saved to Spotify: ${savedName}`);
-    if (data.playlist && data.playlist.url) {
-      state.spotifyPlaylistUrl = data.playlist.url;
-    }
-    clearPendingSave();
-  } catch (error) {
-    state.error = error.message || 'Unexpected error';
-  } finally {
-    state.isLoading = false;
-    render();
-  }
-}
-
-async function resumePendingSave() {
-  const pendingSave = getPendingSave();
-  if (!pendingSave) {
-    return;
-  }
-
-  clearPendingSave();
-  await refreshAuth();
-
-  if (state.auth.authenticated) {
-    await saveToSpotify(pendingSave);
-    return;
-  }
-
-  setPendingSave(pendingSave);
-}
 
 function quickSurprise() {
   const pick = (items) => items[Math.floor(Math.random() * items.length)].key;
@@ -437,7 +359,8 @@ function render() {
           <h1>Mood Playlist Generator</h1>
           <p>Create focused, stylish playlists from your current context.</p>
           <div class="mpg3-auth">
-            <span>${state.auth.authenticated ? `Signed in as ${escapeHtml((state.auth.user && state.auth.user.display_name) || 'Spotify User')}` : (state.auth.needsReauth ? 'Spotify permissions need to be refreshed' : 'Not signed in')}</span>
+            ${state.auth.authenticated ? userAvatarMarkup() : ''}
+            <span>${state.auth.authenticated ? `Signed in as ${escapeHtml((state.auth.user && state.auth.user.display_name) || 'Spotify User')}` : 'Not signed in'}</span>
             ${state.auth.authenticated ? '<a class="mpg3-btn" href="/auth/spotify/logout">Sign out</a>' : '<a class="mpg3-btn mpg3-btn-primary" href="/auth/spotify/login">Sign in with Spotify</a>'}
           </div>
         </div>
@@ -483,14 +406,6 @@ function render() {
         <div class="mpg3-header-row">
           <h2>${escapeHtml(titleText())}</h2>
           <div class="mpg3-row">
-            <button type="button" class="mpg3-btn mpg3-btn-spotify mpg3-btn-lg mpg3-btn-save" data-action="save" ${state.isLoading || !state.playlist.length ? 'disabled' : ''} aria-label="Save playlist to Spotify">
-              <span class="mpg3-btn-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" role="img" focusable="false">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.57 14.36a.75.75 0 0 1-1.03.25c-2.82-1.72-6.38-2.11-10.58-1.16a.75.75 0 1 1-.33-1.47c4.55-1.02 8.48-.58 11.6 1.33.36.22.47.69.24 1.05zm1.46-3.25a.94.94 0 0 1-1.3.31c-3.26-2-8.24-2.58-12.11-1.4a.94.94 0 1 1-.55-1.8c4.42-1.34 9.91-.69 13.62 1.59.44.27.58.85.34 1.3zm.13-3.4C14.12 7.5 7.37 7.28 3.5 8.44a1.12 1.12 0 1 1-.64-2.14c4.45-1.34 11.75-1.08 16.43 1.69a1.12 1.12 0 0 1-1.17 1.92z"/>
-                </svg>
-              </span>
-              <span>Save to Spotify</span>
-            </button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="json">JSON</button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="csv">CSV</button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="txt">Text</button>
@@ -554,11 +469,6 @@ function handleRootEvent(event) {
 
   if (action === 'generate') {
     generate();
-    return;
-  }
-
-  if (action === 'save') {
-    saveToSpotify();
     return;
   }
 
@@ -629,7 +539,6 @@ function handleKeydown(event) {
 function init() {
   loadState();
   render();
-  resumePendingSave();
   refreshAuth();
 
   const root = document.getElementById('appRoot');
