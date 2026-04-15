@@ -43,7 +43,7 @@ For Spotify sign-in, also set:
 python app.py
 ```
 
-Open http://localhost:5000
+Open <http://localhost:5000>
 
 ## Run with Docker
 
@@ -51,7 +51,7 @@ Open http://localhost:5000
 docker-compose up --build
 ```
 
-The app will be available at http://localhost:5000.
+The app will be available at <http://localhost:5000>.
 
 ## Deploy Publicly
 
@@ -70,6 +70,36 @@ The app will be available at http://localhost:5000.
 
 This repository includes `Procfile` and `runtime.txt` for hosts that support this runtime model.
 
+### Option 3: Vercel
+
+This project supports Vercel serverless deployment via `vercel.json` and `api/index.py`.
+
+1. Install Vercel CLI and login:
+
+```powershell
+npm i -g vercel
+vercel login
+```
+
+1. Deploy from project root:
+
+```powershell
+vercel
+```
+
+1. Set required environment variables in Vercel Project Settings:
+
+- `SPOTIFY_CLIENT_ID`
+- `SPOTIFY_CLIENT_SECRET`
+- `SECRET_KEY`
+- `SPOTIFY_REDIRECT_URI=https://<your-vercel-domain>/auth/spotify/callback`
+
+1. Redeploy after env vars are set:
+
+```powershell
+vercel --prod
+```
+
 ## Spotify Redirect URI Setup
 
 Use matching callback URLs in both your environment and Spotify Developer Dashboard.
@@ -85,15 +115,15 @@ Use matching callback URLs in both your environment and Spotify Developer Dashbo
 .\build_exe.ps1
 ```
 
-2. Output EXE:
+1. Output EXE:
 
 - `dist\MusicPlaylistGenerator.exe`
 
-3. Build installer with Inno Setup using:
+1. Build installer with Inno Setup using:
 
 - `installer.iss`
 
-4. Installer output:
+1. Installer output:
 
 - `dist\MusicPlaylistGeneratorSetup.exe`
 
