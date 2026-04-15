@@ -976,35 +976,6 @@ function render() {
       </aside>
 
       <main class="mpg3-right">
-        <section class="mpg3-main-banner">
-          <div class="mpg3-main-banner-copy">
-            <p class="mpg3-main-kicker">Dashboard</p>
-            <h2>Curated playlist workspace</h2>
-            <p>Shape, refine, and export a playlist without leaving the current view.</p>
-          </div>
-
-          <div class="mpg3-badge-row">
-            <span class="mpg3-badge">${escapeHtml(state.auth.authenticated ? 'Spotify connected' : 'Not signed in')}</span>
-            <span class="mpg3-badge">${escapeHtml(state.playlist.length ? `${state.playlist.length} tracks loaded` : 'Ready to generate')}</span>
-            <span class="mpg3-badge">${escapeHtml(state.autoPlayPreview ? 'Auto preview on' : 'Auto preview off')}</span>
-          </div>
-
-          <div class="mpg3-metric-grid">
-            <div class="mpg3-metric-card">
-              <span class="mpg3-metric-label">Current vibe</span>
-              <strong>${escapeHtml(cap(state.mood))}</strong>
-            </div>
-            <div class="mpg3-metric-card">
-              <span class="mpg3-metric-label">Playlist mode</span>
-              <strong>${escapeHtml(cap(state.activity))}</strong>
-            </div>
-            <div class="mpg3-metric-card">
-              <span class="mpg3-metric-label">Window</span>
-              <strong>${escapeHtml(cap(state.timeOfDay))}</strong>
-            </div>
-          </div>
-        </section>
-
         <div class="mpg3-header-row">
           <h2>${escapeHtml(titleText())}</h2>
           <div class="mpg3-row">
