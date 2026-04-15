@@ -64,7 +64,7 @@ function escapeHtml(value) {
 
 const state = {
   theme: 'ocean',
-  auth: { authenticated: false, user: null },
+  auth: { authenticated: false, user: null, needsReauth: false, missingScopes: [] },
   mood: 'happy',
   activity: 'study',
   timeOfDay: 'evening',
@@ -123,9 +123,14 @@ async function refreshAuth() {
   try {
     const res = await fetch('/api/auth/status');
     const data = await res.json();
-    state.auth = { authenticated: !!data.authenticated, user: data.user || null };
+    state.auth = {
+      authenticated: !!data.authenticated,
+      user: data.user || null,
+      needsReauth: !!data.needs_reauth,
+      missingScopes: data.missing_scopes || [],
+    };
   } catch (error) {
-    state.auth = { authenticated: false, user: null };
+    state.auth = { authenticated: false, user: null, needsReauth: false, missingScopes: [] };
   }
   render();
 }
@@ -208,7 +213,7 @@ async function saveToSpotify(payload = null) {
 
   if (!state.auth.authenticated) {
     setPendingSave({ playlist, metadata });
-    setToast('Redirecting to Spotify sign-in');
+    setToast(state.auth.needsReauth ? 'Reconnecting Spotify to refresh playlist permissions' : 'Redirecting to Spotify sign-in');
     window.location.href = '/auth/spotify/login';
     return;
   }
@@ -228,6 +233,13 @@ async function saveToSpotify(payload = null) {
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
+      if (res.status === 401 && data.details) {
+        setPendingSave({ playlist, metadata });
+        setToast('Reconnecting Spotify to approve playlist saving');
+        window.location.href = '/auth/spotify/login';
+        return;
+      }
+
       const message = data.details ? `${data.error || 'Could not save playlist.'} (${data.details})` : (data.error || 'Could not save playlist.');
       throw new Error(message);
     }
@@ -425,7 +437,7 @@ function render() {
           <h1>Mood Playlist Generator</h1>
           <p>Create focused, stylish playlists from your current context.</p>
           <div class="mpg3-auth">
-            <span>${state.auth.authenticated ? `Signed in as ${escapeHtml((state.auth.user && state.auth.user.display_name) || 'Spotify User')}` : 'Not signed in'}</span>
+            <span>${state.auth.authenticated ? `Signed in as ${escapeHtml((state.auth.user && state.auth.user.display_name) || 'Spotify User')}` : (state.auth.needsReauth ? 'Spotify permissions need to be refreshed' : 'Not signed in')}</span>
             ${state.auth.authenticated ? '<a class="mpg3-btn" href="/auth/spotify/logout">Sign out</a>' : '<a class="mpg3-btn mpg3-btn-primary" href="/auth/spotify/login">Sign in with Spotify</a>'}
           </div>
         </div>
