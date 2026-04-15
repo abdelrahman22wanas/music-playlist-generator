@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.11",
-      "includeFiles": "{templates/**,static/**}"
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": "{templates/**,static/**}"
+      }
     }
-  },
+  ],
   "routes": [
     {
       "src": "/(.*)",
