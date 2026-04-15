@@ -379,6 +379,141 @@ input:focus-visible {
   .mpg3-shell { grid-template-columns: 1fr; }
 }
 
+/* Phase 1: Controls, Stats, Playlist Actions */
+.mpg3-controls {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.mpg3-control-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mpg3-search {
+  flex: 1;
+  min-width: 140px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.mpg3-search::placeholder { color: var(--muted); }
+.mpg3-search:focus { outline: 2px solid rgba(255, 255, 255, 0.2); outline-offset: -1px; }
+
+.mpg3-select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.mpg3-select:focus { outline: 2px solid rgba(255, 255, 255, 0.2); outline-offset: -1px; }
+
+.mpg3-stats {
+  display: flex;
+  gap: 1.2rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0.6rem 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.mpg3-playlist-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mpg3-playlist-name {
+  flex: 1;
+  min-width: 120px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.mpg3-playlist-name::placeholder { color: var(--muted); }
+.mpg3-playlist-name:focus { outline: 2px solid rgba(255, 255, 255, 0.2); outline-offset: -1px; }
+
+.mpg3-btn.is-faved {
+  background: linear-gradient(148deg, var(--brand-1), var(--brand-2));
+  color: #031320;
+  border: none;
+  font-weight: 600;
+}
+
+.mpg3-favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mpg3-favorite-item {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.mpg3-favorite-name {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--ink);
+  text-align: left;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: 100ms ease;
+}
+
+.mpg3-favorite-name:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(2px);
+}
+
+.mpg3-favorite-remove {
+  border: 1px solid var(--line);
+  background: rgba(255, 122, 122, 0.15);
+  color: #ffd2d2;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 100ms ease;
+}
+
+.mpg3-favorite-remove:hover {
+  background: rgba(255, 122, 122, 0.3);
+}
+
 @media (max-width: 640px) {
   .mpg3-shell { width: calc(100% - 1rem); margin: 0.5rem auto; }
   .mpg3-track { grid-template-columns: 64px 1fr; }

@@ -26,9 +26,17 @@ const THEMES = [
   { key: 'graphite', label: 'Graphite' },
 ];
 
+const SORT_OPTIONS = [
+  { key: 'added', label: 'Recently Added' },
+  { key: 'popularity', label: 'Popularity' },
+  { key: 'artist', label: 'Artist' },
+  { key: 'duration', label: 'Duration' },
+];
+
 const STORE = {
   theme: 'mpg_theme_v3',
   history: 'mpg_history_v3',
+  favorites: 'mpg_favorites_v1',
 };
 
 function cap(text) {
@@ -70,9 +78,13 @@ const state = {
   discoveryBias: 0,
   intensityBias: 0,
   playlist: [],
+  playlistName: '',
   meta: null,
   explain: null,
   history: [],
+  favorites: [],
+  searchQuery: '',
+  sortBy: 'added',
   isLoading: false,
   error: '',
   hiddenTracks: new Set(),
@@ -98,6 +110,132 @@ function setToast(message) {
   }, 2200);
 }
 
+// Phase 1: Favorites, Search/Filter, Sorting, Shuffle, Stats
+function saveFavorites() {
+  localStorage.setItem(STORE.favorites, JSON.stringify(state.favorites));
+}
+
+function loadFavorites() {
+  const saved = localStorage.getItem(STORE.favorites);
+  if (saved) {
+    try {
+      state.favorites = JSON.parse(saved) || [];
+    } catch (error) {
+      console.warn(error);
+      state.favorites = [];
+    }
+  }
+}
+
+function saveFavorite() {
+  if (!state.playlist.length || !state.meta) {
+    setToast('Nothing to save');
+    return;
+  }
+  
+  const favorite = {
+    name: state.playlistName || `${cap(state.meta.mood)} ${cap(state.meta.activity)}`,
+    playlist: [...state.playlist],
+    meta: state.meta,
+    createdAt: Date.now(),
+  };
+  
+  state.favorites = state.favorites.filter(fav => 
+    !(fav.meta.mood === state.meta.mood &&
+      fav.meta.activity === state.meta.activity &&
+      fav.meta.time_of_day === state.meta.time_of_day)
+  );
+  
+  state.favorites.unshift(favorite);
+  state.favorites = state.favorites.slice(0, 20);
+  saveFavorites();
+  setToast('Playlist saved to favorites');
+  render();
+}
+
+function removeFavorite(index) {
+  state.favorites.splice(index, 1);
+  saveFavorites();
+  setToast('Favorite removed');
+  render();
+}
+
+function loadFavorite(index) {
+  const favorite = state.favorites[index];
+  if (!favorite) return;
+  
+  state.playlist = [...favorite.playlist];
+  state.meta = favorite.meta;
+  state.playlistName = favorite.name;
+  state.mood = favorite.meta.mood;
+  state.activity = favorite.meta.activity;
+  state.timeOfDay = favorite.meta.time_of_day;
+  state.searchQuery = '';
+  setToast(`Loaded: ${favorite.name}`);
+  render();
+}
+
+function calculatePlaylistStats() {
+  const displayed = getFilteredAndSortedPlaylist();
+  if (!displayed.length) {
+    return { tracks: 0, duration: 0, avgPopularity: 0 };
+  }
+  
+  const stats = displayed.reduce((acc, track) => ({
+    tracks: acc.tracks + 1,
+    duration: acc.duration + (track.duration_ms || 0),
+    popularity: acc.popularity + (track.popularity || 0),
+  }), { tracks: 0, duration: 0, popularity: 0 });
+  
+  return {
+    tracks: stats.tracks,
+    duration: mmss(stats.duration),
+    avgPopularity: Math.round(stats.popularity / stats.tracks),
+  };
+}
+
+function getFilteredAndSortedPlaylist() {
+  let filtered = state.playlist;
+  
+  if (state.searchQuery.trim()) {
+    const query = state.searchQuery.toLowerCase();
+    filtered = filtered.filter(track => 
+      (track.name || '').toLowerCase().includes(query) ||
+      (track.artist || '').toLowerCase().includes(query) ||
+      (track.album || '').toLowerCase().includes(query)
+    );
+  }
+  
+  const sorted = [...filtered];
+  if (state.sortBy === 'popularity') {
+    sorted.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+  } else if (state.sortBy === 'artist') {
+    sorted.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
+  } else if (state.sortBy === 'duration') {
+    sorted.sort((a, b) => (a.duration_ms || 0) - (b.duration_ms || 0));
+  }
+  
+  return sorted;
+}
+
+function shufflePlaylist() {
+  const shuffled = [...state.playlist];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  state.playlist = shuffled;
+  state.searchQuery = '';
+  state.sortBy = 'added';
+  setToast('Playlist shuffled');
+  render();
+}
+
+function setPlaylistName(name) {
+  state.playlistName = name.trim().slice(0, 50);
+  render();
+}
+
 function saveHistory() {
   localStorage.setItem(STORE.history, JSON.stringify(state.history));
 }
@@ -115,6 +253,7 @@ function loadState() {
       console.warn(error);
     }
   }
+  loadFavorites();
   document.body.dataset.theme = state.theme;
 }
 
@@ -300,9 +439,39 @@ function playlistMarkup() {
     return '<div class="mpg3-empty">No tracks yet. Hit Generate to build your playlist.</div>';
   }
 
+  const displayedTracks = getFilteredAndSortedPlaylist();
+  const stats = calculatePlaylistStats();
+  const hasCustomName = state.playlistName.length > 0;
+  const isFaved = state.favorites.some(fav => 
+    fav.meta.mood === state.meta.mood &&
+    fav.meta.activity === state.meta.activity &&
+    fav.meta.time_of_day === state.meta.time_of_day
+  );
+
   return `
+    <div class="mpg3-controls">
+      <div class="mpg3-row mpg3-control-row">
+        <input type="text" class="mpg3-search" placeholder="Search tracks..." data-action="set-search" value="${escapeHtml(state.searchQuery)}" />
+        <select class="mpg3-select" data-action="set-sort">
+          ${SORT_OPTIONS.map(opt => `<option value="${opt.key}" ${state.sortBy === opt.key ? 'selected' : ''}>${escapeHtml(opt.label)}</option>`).join('')}
+        </select>
+        <button type="button" class="mpg3-btn" data-action="shuffle-btn">🔀 Shuffle</button>
+      </div>
+
+      <div class="mpg3-stats">
+        <span>${escapeHtml(stats.tracks)} tracks</span>
+        <span>${escapeHtml(stats.duration)}</span>
+        <span>💯${escapeHtml(stats.avgPopularity)}</span>
+      </div>
+
+      <div class="mpg3-playlist-actions">
+        <input type="text" class="mpg3-playlist-name" placeholder="Playlist name..." data-action="set-playlist-name" value="${escapeHtml(state.playlistName)}" maxlength="50" />
+        <button type="button" class="mpg3-btn ${isFaved ? 'is-faved' : ''}" data-action="save-favorite">⭐ ${isFaved ? 'Saved' : 'Save'}</button>
+      </div>
+    </div>
+
     <div class="mpg3-track-list">
-      ${state.playlist.map((track, index) => {
+      ${displayedTracks.map((track, index) => {
         const firstArtist = (track.artist || '').split(',')[0].trim();
         return `
           <article class="mpg3-track">
@@ -324,6 +493,8 @@ function playlistMarkup() {
         `;
       }).join('')}
     </div>
+
+    ${displayedTracks.length === 0 && state.searchQuery ? '<div class="mpg3-empty">No matches found.</div>' : ''}
   `;
 }
 
@@ -340,6 +511,26 @@ function historyMarkup() {
           <button type="button" class="mpg3-btn" data-action="history" data-value='${escapeHtml(JSON.stringify(item))}'>
             ${escapeHtml(cap(item.mood))} - ${escapeHtml(cap(item.activity))} - ${escapeHtml(cap(item.time_of_day))}
           </button>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function favoritesMarkup() {
+  if (!state.favorites.length) {
+    return '';
+  }
+
+  return `
+    <section class="mpg3-card">
+      <h3>⭐ Favorites</h3>
+      <div class="mpg3-favorites-list">
+        ${state.favorites.map((fav, index) => `
+          <div class="mpg3-favorite-item">
+            <button type="button" class="mpg3-favorite-name" data-action="load-favorite" data-value="${index}" title="${escapeHtml(fav.name)}">${escapeHtml(fav.name)}</button>
+            <button type="button" class="mpg3-favorite-remove" data-action="remove-favorite" data-value="${index}" title="Remove">×</button>
+          </div>
         `).join('')}
       </div>
     </section>
@@ -394,6 +585,8 @@ function render() {
             ${THEMES.map(item => `<button type="button" class="mpg3-btn ${state.theme === item.key ? 'is-current' : ''}" data-action="set-theme" data-value="${item.key}">${escapeHtml(item.label)}</button>`).join('')}
           </div>
         </section>
+
+        ${favoritesMarkup()}
 
         <div class="mpg3-row mpg3-actions">
           <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="generate" ${state.isLoading ? 'disabled' : ''}>${state.isLoading ? 'Generating...' : 'Generate'}</button>
@@ -526,6 +719,45 @@ function handleRootEvent(event) {
     } catch (error) {
       console.warn(error);
     }
+    return;
+  }
+
+  // Phase 1 handlers
+  if (action === 'set-search') {
+    state.searchQuery = target.value;
+    render();
+    return;
+  }
+
+  if (action === 'set-sort') {
+    state.sortBy = target.value;
+    render();
+    return;
+  }
+
+  if (action === 'shuffle-btn') {
+    shufflePlaylist();
+    return;
+  }
+
+  if (action === 'set-playlist-name') {
+    setPlaylistName(target.value);
+    return;
+  }
+
+  if (action === 'save-favorite') {
+    saveFavorite();
+    return;
+  }
+
+  if (action === 'load-favorite') {
+    loadFavorite(Number(value));
+    return;
+  }
+
+  if (action === 'remove-favorite') {
+    removeFavorite(Number(value));
+    return;
   }
 }
 
