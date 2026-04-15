@@ -11,6 +11,7 @@ from spotify_auth import (
 )
 import os
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -321,7 +322,11 @@ def save_playlist():
         }), 200
     except Exception as e:
         print(f"Error in save_playlist: {str(e)}")
-        return jsonify({'error': 'Unable to save playlist to Spotify.'}), 500
+        print(traceback.format_exc())
+        return jsonify({
+            'error': 'Unable to save playlist to Spotify.',
+            'details': str(e),
+        }), 500
 
 
 @app.route('/api/health', methods=['GET'])

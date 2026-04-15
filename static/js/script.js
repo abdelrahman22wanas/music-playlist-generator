@@ -228,7 +228,8 @@ async function saveToSpotify(payload = null) {
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Could not save playlist.');
+      const message = data.details ? `${data.error || 'Could not save playlist.'} (${data.details})` : (data.error || 'Could not save playlist.');
+      throw new Error(message);
     }
 
     const savedName = (data.playlist && data.playlist.name) || 'Spotify playlist';
