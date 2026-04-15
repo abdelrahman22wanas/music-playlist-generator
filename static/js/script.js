@@ -127,9 +127,6 @@ const state = {
   acousticnessMax: 1,
   showHistoryStats: false,
   showKeyboardHelp: false,
-  showColorPicker: false,
-  showShareModal: false,
-  autoPlayPreview: true,
   isLoading: false,
   error: '',
   hiddenTracks: new Set(),
@@ -433,129 +430,6 @@ function keyboardHelpMarkup() {
   `;
 }
 
-// Phase 4: Color Picker, Auto-Play, Shareable Links
-function generateShareLink() {
-  if (!state.playlist.length) {
-    setToast('Generate a playlist first');
-    return;
-  }
-
-  const trackIds = state.playlist.map(t => t.id).filter(Boolean).join(',');
-  const baseUrl = window.location.origin + window.location.pathname;
-  const shareUrl = `${baseUrl}?share=${encodeURIComponent(btoa(JSON.stringify({
-    playlistName: state.playlistName || 'Shared Playlist',
-    tracks: state.playlist,
-    meta: state.meta,
-  })))}`;
-  
-  return shareUrl;
-}
-
-function copyShareLink() {
-  const link = generateShareLink();
-  if (!link) return;
-  
-  navigator.clipboard.writeText(link).then(() => {
-    setToast('Link copied to clipboard! 📋');
-  }).catch(() => {
-    setToast('Failed to copy link');
-  });
-}
-
-function shareMarkup() {
-  const link = generateShareLink();
-  
-  return `
-    <div class="mpg3-modal-backdrop" data-action="close-share">
-      <div class="mpg3-modal" data-action="noop">
-        <div class="mpg3-modal-header">
-          <h3>🔗 Share Your Playlist</h3>
-          <button type="button" class="mpg3-modal-close" data-action="close-share">×</button>
-        </div>
-        <div class="mpg3-modal-content">
-          <div style="background: var(--bg); padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem;">
-            <div style="font-size: 0.9rem; color: var(--ink); margin-bottom: 0.3rem;"><strong>Playlist:</strong> ${escapeHtml(state.playlistName || 'Unnamed')}</div>
-            <div style="font-size: 0.85rem; color: var(--muted);">${state.playlist.length} ${state.playlist.length === 1 ? 'track' : 'tracks'}</div>
-          </div>
-          
-          <p style="color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0;">Share this link with friends to let them view your playlist:</p>
-          
-          <div class="mpg3-share-input-group">
-            <input type="text" readonly value="${escapeHtml(link)}" class="mpg3-share-input" onclick="this.select()" />
-            <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="copy-share-link" title="Copy to clipboard">Copy</button>
-          </div>
-          
-          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line);">
-            <button type="button" class="mpg3-btn mpg3-btn-block" data-action="close-share">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function colorPickerMarkup() {
-  const brand1 = getComputedStyle(document.documentElement).getPropertyValue('--brand-1').trim();
-  const brand2 = getComputedStyle(document.documentElement).getPropertyValue('--brand-2').trim();
-  
-  return `
-    <div class="mpg3-modal-backdrop" data-action="close-colors">
-      <div class="mpg3-modal" data-action="noop">
-        <div class="mpg3-modal-header">
-          <h3>🎨 Custom Theme Colors</h3>
-          <button type="button" class="mpg3-modal-close" data-action="close-colors">×</button>
-        </div>
-        <div class="mpg3-modal-content">
-          <div class="mpg3-color-row">
-            <div class="mpg3-color-label">Primary Brand Color</div>
-            <div class="mpg3-color-input-group">
-              <input type="color" class="mpg3-color-input" data-action="set-brand1" value="${brand1}" />
-              <div class="mpg3-color-swatch" style="background-color: ${escapeHtml(brand1)};"></div>
-            </div>
-            <small style="color: var(--muted); margin-top: 0.2rem;">${escapeHtml(brand1)}</small>
-          </div>
-          
-          <div class="mpg3-color-row">
-            <div class="mpg3-color-label">Secondary Brand Color</div>
-            <div class="mpg3-color-input-group">
-              <input type="color" class="mpg3-color-input" data-action="set-brand2" value="${brand2}" />
-              <div class="mpg3-color-swatch" style="background-color: ${escapeHtml(brand2)};"></div>
-            </div>
-            <small style="color: var(--muted); margin-top: 0.2rem;">${escapeHtml(brand2)}</small>
-          </div>
-          
-          <div class="mpg3-modal-actions">
-            <button type="button" class="mpg3-btn" data-action="close-colors">Done</button>
-            <button type="button" class="mpg3-btn" data-action="reset-colors">Reset</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function setCustomColor(variable, color) {
-  document.documentElement.style.setProperty(variable, color);
-  localStorage.setItem(`mpg_${variable}`, color);
-  render();
-}
-
-function resetCustomColors() {
-  document.documentElement.style.removeProperty('--brand-1');
-  document.documentElement.style.removeProperty('--brand-2');
-  localStorage.removeItem('mpg_--brand-1');
-  localStorage.removeItem('mpg_--brand-2');
-  setToast('Colors reset to default');
-  render();
-}
-
-function loadCustomColors() {
-  const brand1 = localStorage.getItem('mpg_--brand-1');
-  const brand2 = localStorage.getItem('mpg_--brand-2');
-  if (brand1) document.documentElement.style.setProperty('--brand-1', brand1);
-  if (brand2) document.documentElement.style.setProperty('--brand-2', brand2);
-}
-
 function saveHistory() {
   localStorage.setItem(STORE.history, JSON.stringify(state.history));
 }
@@ -574,7 +448,6 @@ function loadState() {
     }
   }
   loadFavorites();
-  loadCustomColors();
   document.body.dataset.theme = state.theme;
 }
 
@@ -647,11 +520,6 @@ async function generate(payload = null) {
       ts: Date.now(),
     }, ...state.history].slice(0, 8);
     saveHistory();
-    
-    // Auto-play first track preview if enabled
-    if (state.autoPlayPreview && state.playlist.length > 0 && state.playlist[0].preview_url) {
-      preview(state.playlist[0].preview_url);
-    }
     
     setToast('Playlist ready');
   } catch (error) {
@@ -917,11 +785,6 @@ function render() {
           <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="generate" ${state.isLoading ? 'disabled' : ''}>${state.isLoading ? 'Generating...' : 'Generate'}</button>
           <button type="button" class="mpg3-btn" data-action="surprise">Surprise</button>
           <button type="button" class="mpg3-btn" data-action="reset-hidden">Reset Hidden</button>
-          <button type="button" class="mpg3-btn" data-action="toggle-colors" title="Custom color theme">🎨 Colors</button>
-          <button type="button" class="mpg3-btn ${state.autoPlayPreview ? 'is-current' : ''}" data-action="toggle-autoplay" title="Auto-play first preview">
-            ${state.autoPlayPreview ? '🔊 Auto-play On' : '🔈 Auto-play Off'}
-          </button>
-          <button type="button" class="mpg3-btn" data-action="share-btn" title="Share this playlist">🔗 Share</button>
         </div>
       </aside>
 
@@ -935,7 +798,6 @@ function render() {
           <div class="mpg3-banner-meta">
             <span>${escapeHtml(state.auth.authenticated ? 'Spotify connected' : 'Not signed in')}</span>
             <span>${escapeHtml(state.playlist.length ? `${state.playlist.length} tracks loaded` : 'Ready to generate')}</span>
-            <span>${escapeHtml(state.autoPlayPreview ? 'Auto preview on' : 'Auto preview off')}</span>
           </div>
         </section>
 
@@ -955,8 +817,6 @@ function render() {
       </main>
 
       ${state.showKeyboardHelp ? keyboardHelpMarkup() : ''}
-      ${state.showColorPicker ? colorPickerMarkup() : ''}
-      ${state.showShareModal ? shareMarkup() : ''}
       ${state.toast ? `<div class="mpg3-toast">${escapeHtml(state.toast)}</div>` : ''}
     </div>
   `;
@@ -1177,57 +1037,6 @@ function handleRootEvent(event) {
 
   if (action === 'close-help') {
     state.showKeyboardHelp = false;
-    render();
-    return;
-  }
-
-  // Phase 4 handlers
-  if (action === 'toggle-colors') {
-    state.showColorPicker = !state.showColorPicker;
-    render();
-    return;
-  }
-
-  if (action === 'set-brand1') {
-    setCustomColor('--brand-1', target.value);
-    return;
-  }
-
-  if (action === 'set-brand2') {
-    setCustomColor('--brand-2', target.value);
-    return;
-  }
-
-  if (action === 'reset-colors') {
-    resetCustomColors();
-    return;
-  }
-
-  if (action === 'close-colors') {
-    state.showColorPicker = false;
-    render();
-    return;
-  }
-
-  if (action === 'share-btn') {
-    state.showShareModal = !state.showShareModal;
-    render();
-    return;
-  }
-
-  if (action === 'copy-share-link') {
-    copyShareLink();
-    return;
-  }
-
-  if (action === 'close-share') {
-    state.showShareModal = false;
-    render();
-    return;
-  }
-
-  if (action === 'toggle-autoplay') {
-    state.autoPlayPreview = !state.autoPlayPreview;
     render();
     return;
   }
