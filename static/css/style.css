@@ -97,6 +97,62 @@ body[data-theme='graphite'] {
 
 .mpg3-brand p { margin: 0 0 0.8rem; color: var(--muted); }
 
+.mpg3-banner {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(57, 168, 255, 0.12), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(73, 226, 194, 0.1), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  padding: 0.85rem 0.95rem;
+  margin-bottom: 0.8rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.mpg3-banner-copy {
+  display: grid;
+  gap: 0.18rem;
+  margin-bottom: 0.6rem;
+}
+
+.mpg3-banner-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(235, 247, 255, 0.72);
+}
+
+.mpg3-banner h2 {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.45rem;
+  line-height: 1.08;
+}
+
+.mpg3-banner-copy p:last-child {
+  margin: 0;
+  color: var(--muted);
+}
+
+.mpg3-banner-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.mpg3-banner-meta span {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .mpg3-header-row {
   padding: 0;
 }

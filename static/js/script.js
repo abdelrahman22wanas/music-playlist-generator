@@ -976,6 +976,19 @@ function render() {
       </aside>
 
       <main class="mpg3-right">
+        <section class="mpg3-banner">
+          <div class="mpg3-banner-copy">
+            <p class="mpg3-banner-kicker">Playlist Workspace</p>
+            <h2>Curated mix ready to shape</h2>
+            <p>Refine your mood, preview tracks, and export without leaving the page.</p>
+          </div>
+          <div class="mpg3-banner-meta">
+            <span>${escapeHtml(state.auth.authenticated ? 'Spotify connected' : 'Not signed in')}</span>
+            <span>${escapeHtml(state.playlist.length ? `${state.playlist.length} tracks loaded` : 'Ready to generate')}</span>
+            <span>${escapeHtml(state.autoPlayPreview ? 'Auto preview on' : 'Auto preview off')}</span>
+          </div>
+        </section>
+
         <div class="mpg3-header-row">
           <h2>${escapeHtml(titleText())}</h2>
           <div class="mpg3-row">
