@@ -470,10 +470,17 @@ function render() {
         <div class="mpg3-header-row">
           <h2>${escapeHtml(titleText())}</h2>
           <div class="mpg3-row">
+            <button type="button" class="mpg3-btn mpg3-btn-spotify mpg3-btn-lg mpg3-btn-save" data-action="save" ${state.isLoading || !state.playlist.length ? 'disabled' : ''}>
+              <span class="mpg3-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" role="img" focusable="false">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.57 14.36a.75.75 0 0 1-1.03.25c-2.82-1.72-6.38-2.11-10.58-1.16a.75.75 0 1 1-.33-1.47c4.55-1.02 8.48-.58 11.6 1.33.36.22.47.69.24 1.05zm1.46-3.25a.94.94 0 0 1-1.3.31c-3.26-2-8.24-2.58-12.11-1.4a.94.94 0 1 1-.55-1.8c4.42-1.34 9.91-.69 13.62 1.59.44.27.58.85.34 1.3zm.13-3.4C14.12 7.5 7.37 7.28 3.5 8.44a1.12 1.12 0 1 1-.64-2.14c4.45-1.34 11.75-1.08 16.43 1.69a1.12 1.12 0 0 1-1.17 1.92z"/>
+                </svg>
+              </span>
+              <span>${state.auth.authenticated ? 'Save to Spotify' : 'Sign in to Save'}</span>
+            </button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="json">JSON</button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="csv">CSV</button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="txt">Text</button>
-            <button type="button" class="mpg3-btn mpg3-btn-spotify mpg3-btn-lg" data-action="save" ${state.isLoading || !state.playlist.length ? 'disabled' : ''}>${state.auth.authenticated ? 'Save to Spotify' : 'Sign in to Save'}</button>
           </div>
         </div>
 
