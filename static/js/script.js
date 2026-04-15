@@ -33,6 +33,45 @@ const SORT_OPTIONS = [
   { key: 'duration', label: 'Duration' },
 ];
 
+const SMART_PRESETS = [
+  { 
+    key: 'workout',
+    label: '🏃 Workout',
+    description: 'High energy, danceable tracks',
+    targetDuration: 45,
+    energyMin: 0.7,
+    energyMax: 1,
+    danceabilityMin: 0.6,
+    danceabilityMax: 1,
+    acousticnessMin: 0,
+    acousticnessMax: 0.3,
+  },
+  { 
+    key: 'study',
+    label: '📚 Study',
+    description: 'Low energy, acoustic focus',
+    targetDuration: 60,
+    energyMin: 0,
+    energyMax: 0.4,
+    danceabilityMin: 0,
+    danceabilityMax: 0.5,
+    acousticnessMin: 0.4,
+    acousticnessMax: 1,
+  },
+  { 
+    key: 'party',
+    label: '🎉 Party',
+    description: 'Very high energy, super danceable',
+    targetDuration: 90,
+    energyMin: 0.8,
+    energyMax: 1,
+    danceabilityMin: 0.7,
+    danceabilityMax: 1,
+    acousticnessMin: 0,
+    acousticnessMax: 0.2,
+  },
+];
+
 const STORE = {
   theme: 'mpg_theme_v3',
   history: 'mpg_history_v3',
@@ -85,6 +124,25 @@ const state = {
   favorites: [],
   searchQuery: '',
   sortBy: 'added',
+  targetDuration: 0,
+  energyMin: 0,
+  energyMax: 1,
+  danceabilityMin: 0,
+  danceabilityMax: 1,
+  acousticnessMin: 0,
+  acousticnessMax: 1,
+  showHistoryStats: false,
+  showKeyboardHelp: false,
+  showColorPicker: false,
+  showShareModal: false,
+  autoPlayPreview: true,
+  useTrendingBoost: false,
+  topArtistFilter: '',
+  userInsights: {
+    topTracks: [],
+    topArtists: [],
+    loaded: false,
+  },
   isLoading: false,
   error: '',
   hiddenTracks: new Set(),
@@ -205,6 +263,34 @@ function getFilteredAndSortedPlaylist() {
       (track.album || '').toLowerCase().includes(query)
     );
   }
+
+  if (state.topArtistFilter.trim()) {
+    const artistQuery = state.topArtistFilter.toLowerCase();
+    filtered = filtered.filter(track => (track.artist || '').toLowerCase().includes(artistQuery));
+  }
+  
+  // Apply audio feature filters
+  filtered = filtered.filter(track => {
+    const energy = (track.audio_features && track.audio_features.energy) || 0.5;
+    const danceability = (track.audio_features && track.audio_features.danceability) || 0.5;
+    const acousticness = (track.audio_features && track.audio_features.acousticness) || 0.5;
+    
+    return (
+      energy >= state.energyMin && energy <= state.energyMax &&
+      danceability >= state.danceabilityMin && danceability <= state.danceabilityMax &&
+      acousticness >= state.acousticnessMin && acousticness <= state.acousticnessMax
+    );
+  });
+  
+  // Apply duration filter if set
+  if (state.targetDuration > 0) {
+    const targetMs = state.targetDuration * 60 * 1000;
+    const tolerance = targetMs * 0.2; // 20% tolerance
+    filtered = filtered.filter(track => {
+      const duration = track.duration_ms || 0;
+      return duration >= (targetMs - tolerance) && duration <= (targetMs + tolerance);
+    });
+  }
   
   const sorted = [...filtered];
   if (state.sortBy === 'popularity') {
@@ -236,6 +322,258 @@ function setPlaylistName(name) {
   render();
 }
 
+function applyPreset(presetKey) {
+  const preset = SMART_PRESETS.find(p => p.key === presetKey);
+  if (!preset) return;
+  
+  state.targetDuration = preset.targetDuration;
+  state.energyMin = preset.energyMin;
+  state.energyMax = preset.energyMax;
+  state.danceabilityMin = preset.danceabilityMin;
+  state.danceabilityMax = preset.danceabilityMax;
+  state.acousticnessMin = preset.acousticnessMin;
+  state.acousticnessMax = preset.acousticnessMax;
+  
+  setToast(`Applied ${preset.label.split(' ')[1]} preset`);
+  render();
+}
+
+function resetFilters() {
+  state.targetDuration = 0;
+  state.energyMin = 0;
+  state.energyMax = 1;
+  state.danceabilityMin = 0;
+  state.danceabilityMax = 1;
+  state.acousticnessMin = 0;
+  state.acousticnessMax = 1;
+  state.searchQuery = '';
+  state.sortBy = 'added';
+  setToast('All filters reset');
+  render();
+}
+
+// Phase 3: Keyboard Shortcuts, History Stats
+function calculateHistoryStats() {
+  if (!state.history.length) {
+    return { moodCounts: {}, activityCounts: {}, timeCounts: {}, total: 0 };
+  }
+
+  const moodCounts = {};
+  const activityCounts = {};
+  const timeCounts = {};
+
+  state.history.forEach(item => {
+    const m = item.mood || 'unknown';
+    const a = item.activity || 'unknown';
+    const t = item.time_of_day || 'unknown';
+    
+    moodCounts[m] = (moodCounts[m] || 0) + 1;
+    activityCounts[a] = (activityCounts[a] || 0) + 1;
+    timeCounts[t] = (timeCounts[t] || 0) + 1;
+  });
+
+  return {
+    moodCounts,
+    activityCounts,
+    timeCounts,
+    total: state.history.length,
+  };
+}
+
+function getMostCommon(counts) {
+  let max = 0;
+  let maxKey = '';
+  Object.entries(counts).forEach(([key, value]) => {
+    if (value > max) {
+      max = value;
+      maxKey = key;
+    }
+  });
+  return { key: maxKey, count: max };
+}
+
+function historyStatsMarkup() {
+  const stats = calculateHistoryStats();
+  if (stats.total === 0) {
+    return '<div class="mpg3-empty">No history yet. Generate playlists to see patterns!</div>';
+  }
+
+  const topMood = getMostCommon(stats.moodCounts);
+  const topActivity = getMostCommon(stats.activityCounts);
+  const topTime = getMostCommon(stats.timeCounts);
+
+  const renderCategory = (counts) => Object.entries(counts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 4)
+    .map(([key, count]) => `<div class="mpg3-stat-row"><span>${escapeHtml(cap(key))}</span><span class="mpg3-stat-bar" style="width: ${(count / stats.total) * 100}%">${count}</span></div>`)
+    .join('');
+
+  return `
+    <div class="mpg3-stats-grid">
+      <div class="mpg3-stat-box">
+        <h4>Top Mood</h4>
+        <div class="mpg3-stat-highlight">${escapeHtml(cap(topMood.key))} (${topMood.count})</div>
+        ${renderCategory(stats.moodCounts)}
+      </div>
+      <div class="mpg3-stat-box">
+        <h4>Top Activity</h4>
+        <div class="mpg3-stat-highlight">${escapeHtml(cap(topActivity.key))} (${topActivity.count})</div>
+        ${renderCategory(stats.activityCounts)}
+      </div>
+      <div class="mpg3-stat-box">
+        <h4>Top Time</h4>
+        <div class="mpg3-stat-highlight">${escapeHtml(cap(topTime.key))} (${topTime.count})</div>
+        ${renderCategory(stats.timeCounts)}
+      </div>
+    </div>
+  `;
+}
+
+function keyboardHelpMarkup() {
+  return `
+    <div class="mpg3-modal-backdrop" data-action="close-help">
+      <div class="mpg3-modal">
+        <div class="mpg3-modal-header">
+          <h3>⌨️ Keyboard Shortcuts</h3>
+          <button class="mpg3-modal-close" data-action="close-help">×</button>
+        </div>
+        <div class="mpg3-modal-content">
+          <table class="mpg3-shortcuts-table">
+            <tr><td class="mpg3-key">G</td><td>Generate playlist</td></tr>
+            <tr><td class="mpg3-key">R</td><td>Reset all filters</td></tr>
+            <tr><td class="mpg3-key">S</td><td>Focus search box</td></tr>
+            <tr><td class="mpg3-key">?</td><td>Show this help</td></tr>
+            <tr><td class="mpg3-key">Ctrl/Cmd + Enter</td><td>Generate playlist</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Phase 4: Color Picker, Auto-Play, Shareable Links
+function generateShareLink() {
+  if (!state.playlist.length) {
+    setToast('Generate a playlist first');
+    return;
+  }
+
+  const trackIds = state.playlist.map(t => t.id).filter(Boolean).join(',');
+  const baseUrl = window.location.origin + window.location.pathname;
+  const shareUrl = `${baseUrl}?share=${encodeURIComponent(btoa(JSON.stringify({
+    playlistName: state.playlistName || 'Shared Playlist',
+    tracks: state.playlist,
+    meta: state.meta,
+  })))}`;
+  
+  return shareUrl;
+}
+
+function copyShareLink() {
+  const link = generateShareLink();
+  if (!link) return;
+  
+  navigator.clipboard.writeText(link).then(() => {
+    setToast('Link copied to clipboard! 📋');
+  }).catch(() => {
+    setToast('Failed to copy link');
+  });
+}
+
+function shareMarkup() {
+  const link = generateShareLink();
+  
+  return `
+    <div class="mpg3-modal-backdrop" data-action="close-share">
+      <div class="mpg3-modal" data-action="noop">
+        <div class="mpg3-modal-header">
+          <h3>🔗 Share Your Playlist</h3>
+          <button type="button" class="mpg3-modal-close" data-action="close-share">×</button>
+        </div>
+        <div class="mpg3-modal-content">
+          <div style="background: var(--bg); padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem;">
+            <div style="font-size: 0.9rem; color: var(--ink); margin-bottom: 0.3rem;"><strong>Playlist:</strong> ${escapeHtml(state.playlistName || 'Unnamed')}</div>
+            <div style="font-size: 0.85rem; color: var(--muted);">${state.playlist.length} ${state.playlist.length === 1 ? 'track' : 'tracks'}</div>
+          </div>
+          
+          <p style="color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0;">Share this link with friends to let them view your playlist:</p>
+          
+          <div class="mpg3-share-input-group">
+            <input type="text" readonly value="${escapeHtml(link)}" class="mpg3-share-input" onclick="this.select()" />
+            <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="copy-share-link" title="Copy to clipboard">Copy</button>
+          </div>
+          
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line);">
+            <button type="button" class="mpg3-btn mpg3-btn-block" data-action="close-share">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function colorPickerMarkup() {
+  const brand1 = getComputedStyle(document.documentElement).getPropertyValue('--brand-1').trim();
+  const brand2 = getComputedStyle(document.documentElement).getPropertyValue('--brand-2').trim();
+  
+  return `
+    <div class="mpg3-modal-backdrop" data-action="close-colors">
+      <div class="mpg3-modal" data-action="noop">
+        <div class="mpg3-modal-header">
+          <h3>🎨 Custom Theme Colors</h3>
+          <button type="button" class="mpg3-modal-close" data-action="close-colors">×</button>
+        </div>
+        <div class="mpg3-modal-content">
+          <div class="mpg3-color-row">
+            <div class="mpg3-color-label">Primary Brand Color</div>
+            <div class="mpg3-color-input-group">
+              <input type="color" class="mpg3-color-input" data-action="set-brand1" value="${brand1}" />
+              <div class="mpg3-color-swatch" style="background-color: ${escapeHtml(brand1)};"></div>
+            </div>
+            <small style="color: var(--muted); margin-top: 0.2rem;">${escapeHtml(brand1)}</small>
+          </div>
+          
+          <div class="mpg3-color-row">
+            <div class="mpg3-color-label">Secondary Brand Color</div>
+            <div class="mpg3-color-input-group">
+              <input type="color" class="mpg3-color-input" data-action="set-brand2" value="${brand2}" />
+              <div class="mpg3-color-swatch" style="background-color: ${escapeHtml(brand2)};"></div>
+            </div>
+            <small style="color: var(--muted); margin-top: 0.2rem;">${escapeHtml(brand2)}</small>
+          </div>
+          
+          <div class="mpg3-modal-actions">
+            <button type="button" class="mpg3-btn" data-action="close-colors">Done</button>
+            <button type="button" class="mpg3-btn" data-action="reset-colors">Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setCustomColor(variable, color) {
+  document.documentElement.style.setProperty(variable, color);
+  localStorage.setItem(`mpg_${variable}`, color);
+  render();
+}
+
+function resetCustomColors() {
+  document.documentElement.style.removeProperty('--brand-1');
+  document.documentElement.style.removeProperty('--brand-2');
+  localStorage.removeItem('mpg_--brand-1');
+  localStorage.removeItem('mpg_--brand-2');
+  setToast('Colors reset to default');
+  render();
+}
+
+function loadCustomColors() {
+  const brand1 = localStorage.getItem('mpg_--brand-1');
+  const brand2 = localStorage.getItem('mpg_--brand-2');
+  if (brand1) document.documentElement.style.setProperty('--brand-1', brand1);
+  if (brand2) document.documentElement.style.setProperty('--brand-2', brand2);
+}
+
 function saveHistory() {
   localStorage.setItem(STORE.history, JSON.stringify(state.history));
 }
@@ -254,6 +592,7 @@ function loadState() {
     }
   }
   loadFavorites();
+  loadCustomColors();
   document.body.dataset.theme = state.theme;
 }
 
@@ -262,10 +601,39 @@ async function refreshAuth() {
     const res = await fetch('/api/auth/status');
     const data = await res.json();
     state.auth = { authenticated: !!data.authenticated, user: data.user || null };
+    if (state.auth.authenticated) {
+      await loadUserInsights();
+    } else {
+      state.userInsights = { topTracks: [], topArtists: [], loaded: false };
+      state.useTrendingBoost = false;
+      state.topArtistFilter = '';
+    }
   } catch (error) {
     state.auth = { authenticated: false, user: null };
+    state.userInsights = { topTracks: [], topArtists: [], loaded: false };
+    state.useTrendingBoost = false;
+    state.topArtistFilter = '';
   }
   render();
+}
+
+async function loadUserInsights() {
+  try {
+    const res = await fetch('/api/user-insights');
+    const data = await res.json();
+    if (!res.ok || !data.authenticated) {
+      state.userInsights = { topTracks: [], topArtists: [], loaded: true };
+      return;
+    }
+
+    state.userInsights = {
+      topTracks: data.top_tracks || [],
+      topArtists: data.top_artists || [],
+      loaded: true,
+    };
+  } catch (error) {
+    state.userInsights = { topTracks: [], topArtists: [], loaded: true };
+  }
 }
 
 function userAvatarMarkup() {
@@ -299,6 +667,8 @@ async function generate(payload = null) {
     time_of_day: state.timeOfDay,
     discovery_bias: Number(state.discoveryBias),
     intensity_bias: Number(state.intensityBias),
+    use_trending: !!state.useTrendingBoost,
+    top_artist_filter: state.topArtistFilter || '',
     exclude_track_ids: Array.from(state.hiddenTracks),
     exclude_artist_names: Array.from(state.hiddenArtists),
   };
@@ -326,6 +696,12 @@ async function generate(payload = null) {
       ts: Date.now(),
     }, ...state.history].slice(0, 8);
     saveHistory();
+    
+    // Auto-play first track preview if enabled
+    if (state.autoPlayPreview && state.playlist.length > 0 && state.playlist[0].preview_url) {
+      preview(state.playlist[0].preview_url);
+    }
+    
     setToast('Playlist ready');
   } catch (error) {
     state.error = error.message || 'Unexpected error';
@@ -344,6 +720,8 @@ function quickSurprise() {
     time_of_day: pick(TIMES),
     discovery_bias: Number(state.discoveryBias),
     intensity_bias: Number(state.intensityBias),
+    use_trending: !!state.useTrendingBoost,
+    top_artist_filter: state.topArtistFilter || '',
     exclude_track_ids: Array.from(state.hiddenTracks),
     exclude_artist_names: Array.from(state.hiddenArtists),
   };
@@ -458,6 +836,18 @@ function playlistMarkup() {
         <button type="button" class="mpg3-btn" data-action="shuffle-btn">🔀 Shuffle</button>
       </div>
 
+      <div class="mpg3-row mpg3-control-row">
+        <button type="button" class="mpg3-btn ${state.useTrendingBoost ? 'is-current' : ''}" data-action="toggle-trending-boost" ${state.auth.authenticated ? '' : 'disabled'} title="Use your top tracks as extra playlist signals">
+          ${state.useTrendingBoost ? '🔥 Trending On' : '🔥 Trending Off'}
+        </button>
+        <select class="mpg3-select" data-action="set-top-artist-filter" ${state.auth.authenticated && state.userInsights.topArtists.length ? '' : 'disabled'}>
+          <option value="">Top Artists: All</option>
+          ${(state.userInsights.topArtists || []).map(artist => `<option value="${escapeHtml(artist.name)}" ${state.topArtistFilter === artist.name ? 'selected' : ''}>${escapeHtml(artist.name)}</option>`).join('')}
+        </select>
+      </div>
+
+      ${!state.auth.authenticated ? '<div class="mpg3-empty">Sign in with Spotify to enable trending and top-artist personalization.</div>' : ''}
+
       <div class="mpg3-stats">
         <span>${escapeHtml(stats.tracks)} tracks</span>
         <span>${escapeHtml(stats.duration)}</span>
@@ -505,14 +895,19 @@ function historyMarkup() {
 
   return `
     <section class="mpg3-history">
-      <h3>Recent Sessions</h3>
-      <div class="mpg3-row">
-        ${state.history.map(item => `
-          <button type="button" class="mpg3-btn" data-action="history" data-value='${escapeHtml(JSON.stringify(item))}'>
-            ${escapeHtml(cap(item.mood))} - ${escapeHtml(cap(item.activity))} - ${escapeHtml(cap(item.time_of_day))}
-          </button>
-        `).join('')}
+      <div class="mpg3-history-header">
+        <h3>Recent Sessions</h3>
+        <button type="button" class="mpg3-btn-small" data-action="toggle-stats" title="View stats">📊</button>
       </div>
+      ${state.showHistoryStats ? historyStatsMarkup() : `
+        <div class="mpg3-row">
+          ${state.history.map(item => `
+            <button type="button" class="mpg3-btn" data-action="history" data-value='${escapeHtml(JSON.stringify(item))}'>
+              ${escapeHtml(cap(item.mood))} - ${escapeHtml(cap(item.activity))} - ${escapeHtml(cap(item.time_of_day))}
+            </button>
+          `).join('')}
+        </div>
+      `}
     </section>
   `;
 }
@@ -580,6 +975,43 @@ function render() {
         </section>
 
         <section class="mpg3-card">
+          <h3>🎯 Smart Presets</h3>
+          <div class="mpg3-presets">
+            ${SMART_PRESETS.map(p => `
+              <button type="button" class="mpg3-preset-btn" data-action="apply-preset" data-value="${p.key}" title="${escapeHtml(p.description)}">
+                ${escapeHtml(p.label)}
+              </button>
+            `).join('')}
+          </div>
+        </section>
+
+        <section class="mpg3-card">
+          <h3>🎛️ Advanced Filters</h3>
+          <label>Duration (minutes): ${state.targetDuration || 'Any'}</label>
+          <input class="mpg3-slider" data-action="set-duration" type="range" min="0" max="180" step="5" value="${escapeHtml(state.targetDuration)}">
+          
+          <label>Energy: ${(state.energyMin).toFixed(1)} - ${(state.energyMax).toFixed(1)}</label>
+          <div class="mpg3-range-slider">
+            <input class="mpg3-slider" data-action="set-energy-min" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.energyMin)}">
+            <input class="mpg3-slider" data-action="set-energy-max" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.energyMax)}">
+          </div>
+
+          <label>Danceability: ${(state.danceabilityMin).toFixed(1)} - ${(state.danceabilityMax).toFixed(1)}</label>
+          <div class="mpg3-range-slider">
+            <input class="mpg3-slider" data-action="set-dance-min" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.danceabilityMin)}">
+            <input class="mpg3-slider" data-action="set-dance-max" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.danceabilityMax)}">
+          </div>
+
+          <label>Acousticness: ${(state.acousticnessMin).toFixed(1)} - ${(state.acousticnessMax).toFixed(1)}</label>
+          <div class="mpg3-range-slider">
+            <input class="mpg3-slider" data-action="set-acoustic-min" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.acousticnessMin)}">
+            <input class="mpg3-slider" data-action="set-acoustic-max" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.acousticnessMax)}">
+          </div>
+
+          <button type="button" class="mpg3-btn mpg3-btn-block" data-action="reset-filters">Reset All Filters</button>
+        </section>
+
+        <section class="mpg3-card">
           <h3>Theme</h3>
           <div class="mpg3-row">
             ${THEMES.map(item => `<button type="button" class="mpg3-btn ${state.theme === item.key ? 'is-current' : ''}" data-action="set-theme" data-value="${item.key}">${escapeHtml(item.label)}</button>`).join('')}
@@ -592,6 +1024,11 @@ function render() {
           <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="generate" ${state.isLoading ? 'disabled' : ''}>${state.isLoading ? 'Generating...' : 'Generate'}</button>
           <button type="button" class="mpg3-btn" data-action="surprise">Surprise</button>
           <button type="button" class="mpg3-btn" data-action="reset-hidden">Reset Hidden</button>
+          <button type="button" class="mpg3-btn" data-action="toggle-colors" title="Custom color theme">🎨 Colors</button>
+          <button type="button" class="mpg3-btn ${state.autoPlayPreview ? 'is-current' : ''}" data-action="toggle-autoplay" title="Auto-play first preview">
+            ${state.autoPlayPreview ? '🔊 Auto-play On' : '🔈 Auto-play Off'}
+          </button>
+          <button type="button" class="mpg3-btn" data-action="share-btn" title="Share this playlist">🔗 Share</button>
         </div>
       </aside>
 
@@ -611,6 +1048,9 @@ function render() {
         ${historyMarkup()}
       </main>
 
+      ${state.showKeyboardHelp ? keyboardHelpMarkup() : ''}
+      ${state.showColorPicker ? colorPickerMarkup() : ''}
+      ${state.showShareModal ? shareMarkup() : ''}
       ${state.toast ? `<div class="mpg3-toast">${escapeHtml(state.toast)}</div>` : ''}
     </div>
   `;
@@ -622,6 +1062,10 @@ function handleRootEvent(event) {
 
   const action = target.dataset.action;
   const value = target.dataset.value;
+
+  if (action === 'noop') {
+    return;
+  }
 
   if (action === 'set-mood') {
     state.mood = value;
@@ -674,6 +1118,65 @@ function handleRootEvent(event) {
     state.hiddenTracks = new Set();
     state.hiddenArtists = new Set();
     setToast('Hidden filters reset');
+    render();
+    return;
+  }
+
+  // Phase 2 handlers
+  if (action === 'apply-preset') {
+    applyPreset(value);
+    return;
+  }
+
+  if (action === 'reset-filters') {
+    resetFilters();
+    return;
+  }
+
+  if (action === 'set-duration') {
+    state.targetDuration = Number(target.value);
+    render();
+    return;
+  }
+
+  if (action === 'set-energy-min') {
+    state.energyMin = parseFloat(target.value);
+    if (state.energyMin > state.energyMax) state.energyMax = state.energyMin;
+    render();
+    return;
+  }
+
+  if (action === 'set-energy-max') {
+    state.energyMax = parseFloat(target.value);
+    if (state.energyMax < state.energyMin) state.energyMin = state.energyMax;
+    render();
+    return;
+  }
+
+  if (action === 'set-dance-min') {
+    state.danceabilityMin = parseFloat(target.value);
+    if (state.danceabilityMin > state.danceabilityMax) state.danceabilityMax = state.danceabilityMin;
+    render();
+    return;
+  }
+
+  if (action === 'set-dance-max') {
+    state.danceabilityMax = parseFloat(target.value);
+    if (state.danceabilityMax < state.danceabilityMin) state.danceabilityMin = state.danceabilityMax;
+    render();
+    return;
+  }
+
+  if (action === 'set-acoustic-min') {
+    state.acousticnessMin = parseFloat(target.value);
+    if (state.acousticnessMin > state.acousticnessMax) state.acousticnessMax = state.acousticnessMin;
+    render();
+    return;
+  }
+
+  if (action === 'set-acoustic-max') {
+    state.acousticnessMax = parseFloat(target.value);
+    if (state.acousticnessMax < state.acousticnessMin) state.acousticnessMin = state.acousticnessMax;
     render();
     return;
   }
@@ -759,12 +1262,129 @@ function handleRootEvent(event) {
     removeFavorite(Number(value));
     return;
   }
+
+  // Phase 3 handlers
+  if (action === 'toggle-stats') {
+    state.showHistoryStats = !state.showHistoryStats;
+    render();
+    return;
+  }
+
+  if (action === 'close-help') {
+    state.showKeyboardHelp = false;
+    render();
+    return;
+  }
+
+  // Phase 4 handlers
+  if (action === 'toggle-colors') {
+    state.showColorPicker = !state.showColorPicker;
+    render();
+    return;
+  }
+
+  if (action === 'set-brand1') {
+    setCustomColor('--brand-1', target.value);
+    return;
+  }
+
+  if (action === 'set-brand2') {
+    setCustomColor('--brand-2', target.value);
+    return;
+  }
+
+  if (action === 'reset-colors') {
+    resetCustomColors();
+    return;
+  }
+
+  if (action === 'close-colors') {
+    state.showColorPicker = false;
+    render();
+    return;
+  }
+
+  if (action === 'share-btn') {
+    state.showShareModal = !state.showShareModal;
+    render();
+    return;
+  }
+
+  if (action === 'copy-share-link') {
+    copyShareLink();
+    return;
+  }
+
+  if (action === 'close-share') {
+    state.showShareModal = false;
+    render();
+    return;
+  }
+
+  if (action === 'toggle-autoplay') {
+    state.autoPlayPreview = !state.autoPlayPreview;
+    render();
+    return;
+  }
+
+  if (action === 'toggle-trending-boost') {
+    if (!state.auth.authenticated) {
+      setToast('Sign in to use trending integration');
+      return;
+    }
+    state.useTrendingBoost = !state.useTrendingBoost;
+    render();
+    return;
+  }
+
+  if (action === 'set-top-artist-filter') {
+    state.topArtistFilter = target.value || '';
+    render();
+    return;
+  }
 }
 
 function handleKeydown(event) {
+  // Don't interfere with typing in inputs
+  const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName);
+  
+  // Ctrl/Cmd + Enter to generate
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !state.isLoading) {
     event.preventDefault();
     generate();
+    return;
+  }
+
+  // Only handle single key shortcuts if not typing
+  if (isInputFocused) return;
+
+  // G - Generate
+  if (event.key.toLowerCase() === 'g' && !event.ctrlKey && !event.metaKey) {
+    generate();
+    return;
+  }
+
+  // R - Reset filters
+  if (event.key.toLowerCase() === 'r' && !event.ctrlKey && !event.metaKey) {
+    resetFilters();
+    return;
+  }
+
+  // S - Focus search
+  if (event.key.toLowerCase() === 's' && !event.ctrlKey && !event.metaKey) {
+    const searchInput = document.querySelector('.mpg3-search');
+    if (searchInput) {
+      event.preventDefault();
+      searchInput.focus();
+    }
+    return;
+  }
+
+  // ? or / - Show keyboard help
+  if ((event.key === '?' || event.key === '/') && !event.ctrlKey && !event.metaKey) {
+    state.showKeyboardHelp = !state.showKeyboardHelp;
+    render();
+    return;
   }
 }
 

@@ -82,6 +82,62 @@ def _build_runtime_redirect_uri():
     """Build callback URL on the same host the user is currently using."""
     return f"{request.host_url.rstrip('/')}{url_for('spotify_callback')}"
 
+
+def _get_user_music_insights(top_tracks_limit=15, top_artists_limit=15):
+    """Fetch signed-in user's top tracks and top artists for personalization features."""
+    token_info = session.get('spotify_token_info')
+    runtime_redirect_uri = session.get('spotify_redirect_uri')
+    sp, refreshed_token = get_user_spotify_client(
+        token_info,
+        redirect_uri_override=runtime_redirect_uri,
+    )
+
+    if not sp:
+        return None
+
+    if refreshed_token:
+        session['spotify_token_info'] = refreshed_token
+
+    try:
+        top_tracks_raw = sp.current_user_top_tracks(limit=top_tracks_limit, time_range='short_term')
+    except Exception:
+        top_tracks_raw = {'items': []}
+
+    try:
+        top_artists_raw = sp.current_user_top_artists(limit=top_artists_limit, time_range='short_term')
+    except Exception:
+        top_artists_raw = {'items': []}
+
+    top_tracks = []
+    for item in top_tracks_raw.get('items', []):
+        track_id = item.get('id')
+        if not track_id:
+            continue
+        artists = item.get('artists') or []
+        top_tracks.append({
+            'id': track_id,
+            'name': item.get('name') or 'Unknown Track',
+            'artist': ', '.join([a.get('name', 'Unknown Artist') for a in artists]) or 'Unknown Artist',
+            'popularity': item.get('popularity', 0) or 0,
+        })
+
+    top_artists = []
+    for item in top_artists_raw.get('items', []):
+        artist_id = item.get('id')
+        name = (item.get('name') or '').strip()
+        if not artist_id or not name:
+            continue
+        top_artists.append({
+            'id': artist_id,
+            'name': name,
+            'popularity': item.get('popularity', 0) or 0,
+        })
+
+    return {
+        'top_tracks': top_tracks,
+        'top_artists': top_artists,
+    }
+
 def main():
     """Run the Flask app for local and production entry points."""
     port = int(os.environ.get('PORT', 5000))
@@ -198,6 +254,14 @@ def generate_playlist():
         intensity_bias = _clamp(_safe_float(data.get('intensity_bias', 0.0), 0.0), -1.0, 1.0)
         exclude_track_ids = [str(x).strip() for x in (data.get('exclude_track_ids') or []) if str(x).strip()]
         exclude_artist_names = [str(x).strip() for x in (data.get('exclude_artist_names') or []) if str(x).strip()]
+        use_trending = bool(data.get('use_trending', False))
+        top_artist_filter = str(data.get('top_artist_filter') or '').strip()
+
+        preferred_track_ids = []
+        if use_trending:
+            insights = _get_user_music_insights(top_tracks_limit=20, top_artists_limit=20)
+            if insights:
+                preferred_track_ids = [track.get('id') for track in insights.get('top_tracks', []) if track.get('id')]
 
         # Lazily initialize Spotify-dependent components to keep app boot resilient.
         playlist_generator = PlaylistGenerator()
@@ -211,6 +275,8 @@ def generate_playlist():
             intensity_bias=intensity_bias,
             exclude_track_ids=exclude_track_ids,
             exclude_artist_names=exclude_artist_names,
+            preferred_track_ids=preferred_track_ids,
+            preferred_artist_name=top_artist_filter,
         )
         
         if not playlist:
@@ -238,6 +304,24 @@ def generate_playlist():
     except Exception as e:
         print(f"Error in generate_playlist: {str(e)}")
         return jsonify({'error': 'Unable to generate playlist. Check Spotify credentials.'}), 500
+
+
+@app.route('/api/user-insights', methods=['GET'])
+def user_insights():
+    """Return signed-in user's top tracks and top artists for personalization UI."""
+    insights = _get_user_music_insights(top_tracks_limit=20, top_artists_limit=20)
+    if not insights:
+        return jsonify({
+            'authenticated': False,
+            'top_tracks': [],
+            'top_artists': [],
+        }), 200
+
+    return jsonify({
+        'authenticated': True,
+        'top_tracks': insights.get('top_tracks', []),
+        'top_artists': insights.get('top_artists', []),
+    }), 200
 
 
 @app.route('/api/health', methods=['GET'])

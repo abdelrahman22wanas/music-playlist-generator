@@ -105,6 +105,8 @@ class PlaylistGenerator:
         intensity_bias=0.0,
         exclude_track_ids=None,
         exclude_artist_names=None,
+        preferred_track_ids=None,
+        preferred_artist_name=None,
     ):
         """
         Generate a playlist based on user preferences.
@@ -122,6 +124,8 @@ class PlaylistGenerator:
             params = self.get_playlist_params(mood, activity, time_of_day)
             exclude_track_ids = {str(track_id).strip() for track_id in (exclude_track_ids or []) if str(track_id).strip()}
             exclude_artist_names = {str(name).strip().lower() for name in (exclude_artist_names or []) if str(name).strip()}
+            preferred_track_ids = [str(track_id).strip() for track_id in (preferred_track_ids or []) if str(track_id).strip()]
+            preferred_artist_name = (preferred_artist_name or '').strip()
 
             # Apply user tuning controls.
             params['energy'] = self._clamp(params['energy'] + (float(intensity_bias) * 0.25))
@@ -141,6 +145,14 @@ class PlaylistGenerator:
             except Exception as rec_error:
                 print(f"Recommendations endpoint unavailable, using search fallback: {str(rec_error)}")
                 source_tracks = self._search_fallback_tracks(params['seed_genres'], discovery_bias=float(discovery_bias))
+
+            preferred_tracks = self._get_preferred_tracks(
+                preferred_track_ids=preferred_track_ids,
+                preferred_artist_name=preferred_artist_name,
+            )
+
+            if preferred_tracks:
+                source_tracks = self._merge_track_lists(preferred_tracks, source_tracks)
 
             source_tracks = self._pick_diverse_tracks(
                 self._order_candidates_by_recency(source_tracks),
@@ -185,6 +197,58 @@ class PlaylistGenerator:
                 random.shuffle(cached_tracks)
                 return [self._format_track(track) for track in cached_tracks][:PLAYLIST_SIZE]
             return []
+
+    def _get_preferred_tracks(self, preferred_track_ids=None, preferred_artist_name=''):
+        """Fetch tracks to blend into recommendations from user-specific preferences."""
+        preferred_tracks = []
+        seen_ids = set()
+
+        track_ids = [track_id for track_id in (preferred_track_ids or []) if track_id]
+        if track_ids:
+            try:
+                for start in range(0, min(len(track_ids), 50), 50):
+                    chunk = track_ids[start:start + 50]
+                    results = self.sp.tracks(chunk)
+                    for track in results.get('tracks', []) or []:
+                        track_id = track.get('id')
+                        if track_id and track_id not in seen_ids:
+                            seen_ids.add(track_id)
+                            preferred_tracks.append(track)
+            except Exception as track_error:
+                print(f"Preferred track blend failed: {str(track_error)}")
+
+        if preferred_artist_name:
+            try:
+                artist_results = self.sp.search(
+                    q=f'artist:"{preferred_artist_name}" year:2010-2026',
+                    type='track',
+                    limit=max(SEARCH_LIMIT, 20),
+                    offset=random.randint(0, 300),
+                )
+                for track in artist_results.get('tracks', {}).get('items', []):
+                    track_id = track.get('id')
+                    if track_id and track_id not in seen_ids:
+                        seen_ids.add(track_id)
+                        preferred_tracks.append(track)
+            except Exception as artist_error:
+                print(f"Preferred artist blend failed: {str(artist_error)}")
+
+        return preferred_tracks
+
+    @staticmethod
+    def _merge_track_lists(priority_tracks, base_tracks):
+        """Merge track lists while keeping priority tracks first and deduplicated by ID."""
+        merged = []
+        seen_ids = set()
+
+        for track in list(priority_tracks or []) + list(base_tracks or []):
+            track_id = track.get('id')
+            if not track_id or track_id in seen_ids:
+                continue
+            seen_ids.add(track_id)
+            merged.append(track)
+
+        return merged
 
     def _search_fallback_tracks(self, seed_genres, discovery_bias=0.0):
         """Fallback when recommendations API is unavailable."""

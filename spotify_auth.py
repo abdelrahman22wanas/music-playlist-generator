@@ -104,7 +104,7 @@ def get_spotify_oauth(redirect_uri_override=None):
         client_id=cfg['client_id'],
         client_secret=cfg['client_secret'],
         redirect_uri=cfg['redirect_uri'],
-        scope='user-read-email user-read-private',
+        scope='user-read-email user-read-private user-top-read',
         cache_path=None,
         show_dialog=True,
     )
