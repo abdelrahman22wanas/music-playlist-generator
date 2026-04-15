@@ -918,43 +918,6 @@ function render() {
         </section>
 
         <section class="mpg3-card">
-          <h3>🎯 Smart Presets</h3>
-          <div class="mpg3-presets">
-            ${SMART_PRESETS.map(p => `
-              <button type="button" class="mpg3-preset-btn" data-action="apply-preset" data-value="${p.key}" title="${escapeHtml(p.description)}">
-                ${escapeHtml(p.label)}
-              </button>
-            `).join('')}
-          </div>
-        </section>
-
-        <section class="mpg3-card">
-          <h3>🎛️ Advanced Filters</h3>
-          <label>Duration (minutes): ${state.targetDuration || 'Any'}</label>
-          <input class="mpg3-slider" data-action="set-duration" type="range" min="0" max="180" step="5" value="${escapeHtml(state.targetDuration)}">
-          
-          <label>Energy: ${(state.energyMin).toFixed(1)} - ${(state.energyMax).toFixed(1)}</label>
-          <div class="mpg3-range-slider">
-            <input class="mpg3-slider" data-action="set-energy-min" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.energyMin)}">
-            <input class="mpg3-slider" data-action="set-energy-max" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.energyMax)}">
-          </div>
-
-          <label>Danceability: ${(state.danceabilityMin).toFixed(1)} - ${(state.danceabilityMax).toFixed(1)}</label>
-          <div class="mpg3-range-slider">
-            <input class="mpg3-slider" data-action="set-dance-min" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.danceabilityMin)}">
-            <input class="mpg3-slider" data-action="set-dance-max" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.danceabilityMax)}">
-          </div>
-
-          <label>Acousticness: ${(state.acousticnessMin).toFixed(1)} - ${(state.acousticnessMax).toFixed(1)}</label>
-          <div class="mpg3-range-slider">
-            <input class="mpg3-slider" data-action="set-acoustic-min" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.acousticnessMin)}">
-            <input class="mpg3-slider" data-action="set-acoustic-max" type="range" min="0" max="1" step="0.1" value="${escapeHtml(state.acousticnessMax)}">
-          </div>
-
-          <button type="button" class="mpg3-btn mpg3-btn-block" data-action="reset-filters">Reset All Filters</button>
-        </section>
-
-        <section class="mpg3-card">
           <h3>Theme</h3>
           <div class="mpg3-row">
             ${THEMES.map(item => `<button type="button" class="mpg3-btn ${state.theme === item.key ? 'is-current' : ''}" data-action="set-theme" data-value="${item.key}">${escapeHtml(item.label)}</button>`).join('')}
