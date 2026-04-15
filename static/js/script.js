@@ -461,7 +461,6 @@ function render() {
 
         <div class="mpg3-row mpg3-actions">
           <button type="button" class="mpg3-btn mpg3-btn-primary" data-action="generate" ${state.isLoading ? 'disabled' : ''}>${state.isLoading ? 'Generating...' : 'Generate'}</button>
-          <button type="button" class="mpg3-btn" data-action="save" ${state.isLoading || !state.playlist.length ? 'disabled' : ''}>${state.auth.authenticated ? 'Save to Spotify' : 'Sign in to Save'}</button>
           <button type="button" class="mpg3-btn" data-action="surprise">Surprise</button>
           <button type="button" class="mpg3-btn" data-action="reset-hidden">Reset Hidden</button>
         </div>
@@ -474,6 +473,7 @@ function render() {
             <button type="button" class="mpg3-btn" data-action="export" data-value="json">JSON</button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="csv">CSV</button>
             <button type="button" class="mpg3-btn" data-action="export" data-value="txt">Text</button>
+            <button type="button" class="mpg3-btn mpg3-btn-spotify mpg3-btn-lg" data-action="save" ${state.isLoading || !state.playlist.length ? 'disabled' : ''}>${state.auth.authenticated ? 'Save to Spotify' : 'Sign in to Save'}</button>
           </div>
         </div>
 
