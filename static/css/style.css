@@ -286,17 +286,20 @@ body[data-theme='graphite'] {
 }
 
 .mpg3-pill-icon {
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  font-size: 1rem;
+  border: none;
+  width: auto;
+  height: auto;
+  display: block;
+  font-size: 1.1rem;
   line-height: 1;
 }
 
-.mpg3-slider { width: 100%; accent-color: var(--brand-1); margin-bottom: 0.5rem; }
+.mpg3-slider {
+  width: 100%;
+  accent-color: var(--brand-1);
+  margin-bottom: 0.5rem;
+  touch-action: pan-y;
+}
 .mpg3-card label { display: block; color: var(--muted); font-size: 0.83rem; margin-bottom: 0.2rem; }
 
 .mpg3-row {

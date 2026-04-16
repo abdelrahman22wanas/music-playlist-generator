@@ -73,7 +73,6 @@ const STORE = {
 };
 
 const BRAND_NAME = 'AuraMix';
-const BRAND_TAGLINE = 'Neon Music Studio';
 
 function cap(text) {
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
@@ -752,11 +751,9 @@ function render() {
           <div class="mpg3-brand-lockup">
             <img class="mpg3-brand-logo" src="/static/img/auramix-logo.svg" alt="AuraMix logo">
             <div>
-              <p class="mpg3-tag">${escapeHtml(BRAND_TAGLINE)}</p>
               <h1>${escapeHtml(BRAND_NAME)}</h1>
             </div>
           </div>
-          <p>Create focused, stylish playlists from your mood, activity, and time.</p>
           <div class="mpg3-auth">
             ${state.auth.authenticated ? userAvatarMarkup() : ''}
             <span>${state.auth.authenticated ? `Signed in as ${escapeHtml((state.auth.user && state.auth.user.display_name) || 'Spotify User')}` : 'Not signed in'}</span>
@@ -799,9 +796,7 @@ function render() {
       <main class="mpg3-right">
         <section class="mpg3-banner">
           <div class="mpg3-banner-copy">
-            <p class="mpg3-banner-kicker">Playlist Workspace</p>
             <h2>Curated mix ready to shape</h2>
-            <p>Refine your mood, preview tracks, and export without leaving the page.</p>
           </div>
           <div class="mpg3-banner-meta">
             <span>${escapeHtml(state.auth.authenticated ? 'Spotify connected' : 'Not signed in')}</span>
@@ -867,13 +862,19 @@ function handleRootEvent(event) {
 
   if (action === 'set-discovery') {
     state.discoveryBias = Number(target.value);
-    render();
+    // Re-render only after interaction is committed so touch dragging stays smooth.
+    if (event.type === 'change') {
+      render();
+    }
     return;
   }
 
   if (action === 'set-intensity') {
     state.intensityBias = Number(target.value);
-    render();
+    // Re-render only after interaction is committed so touch dragging stays smooth.
+    if (event.type === 'change') {
+      render();
+    }
     return;
   }
 
