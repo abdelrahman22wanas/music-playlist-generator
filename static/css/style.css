@@ -79,6 +79,21 @@ body[data-theme='graphite'] {
 .mpg3-left { padding: 1rem; }
 .mpg3-right { padding: 1rem; background: linear-gradient(180deg, rgba(5, 16, 28, 0.9), rgba(3, 11, 20, 0.96)); min-width: 0; }
 
+.mpg3-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.mpg3-brand-logo {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 10px 22px rgba(6, 18, 32, 0.55);
+}
+
 .mpg3-brand h1 {
   margin: 0.1rem 0 0.4rem;
   font-family: 'Space Grotesk', sans-serif;

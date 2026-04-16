@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="auramixTitle auramixDesc">
+  <title id="auramixTitle">AuraMix Logo</title>
+  <desc id="auramixDesc">Neon circular music logo with pulse waves and note mark.</desc>
+  <defs>
+    <linearGradient id="pcGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#49e2c2"/>
+      <stop offset="100%" stop-color="#39a8ff"/>
+    </linearGradient>
+    <filter id="pcNeon" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#49e2c2" flood-opacity="0.65"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#39a8ff" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <circle cx="80" cy="80" r="66" fill="rgba(7,22,40,0.65)" stroke="url(#pcGlow)" stroke-width="6" filter="url(#pcNeon)"/>
+
+  <path d="M36 88 C48 64, 64 112, 76 80 C84 60, 96 96, 110 72 C118 60, 124 66, 132 62"
+        fill="none" stroke="url(#pcGlow)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" filter="url(#pcNeon)"/>
+
+  <g transform="translate(84,44)" filter="url(#pcNeon)">
+    <rect x="0" y="0" width="8" height="46" rx="4" fill="url(#pcGlow)"/>
+    <circle cx="4" cy="48" r="10" fill="url(#pcGlow)"/>
+    <circle cx="24" cy="38" r="9" fill="url(#pcGlow)"/>
+    <path d="M8 6 C16 8, 22 14, 24 20 L24 38" fill="none" stroke="url(#pcGlow)" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>

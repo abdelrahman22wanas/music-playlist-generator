@@ -72,6 +72,9 @@ const STORE = {
   favorites: 'mpg_favorites_v1',
 };
 
+const BRAND_NAME = 'AuraMix';
+const BRAND_TAGLINE = 'Neon Music Studio';
+
 function cap(text) {
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
 }
@@ -746,9 +749,14 @@ function render() {
     <div class="mpg3-shell">
       <aside class="mpg3-left">
         <div class="mpg3-brand">
-          <p class="mpg3-tag">Vanilla JS UI</p>
-          <h1>Mood Playlist Generator</h1>
-          <p>Create focused, stylish playlists from your current context.</p>
+          <div class="mpg3-brand-lockup">
+            <img class="mpg3-brand-logo" src="/static/img/auramix-logo.svg" alt="AuraMix logo">
+            <div>
+              <p class="mpg3-tag">${escapeHtml(BRAND_TAGLINE)}</p>
+              <h1>${escapeHtml(BRAND_NAME)}</h1>
+            </div>
+          </div>
+          <p>Create focused, stylish playlists from your mood, activity, and time.</p>
           <div class="mpg3-auth">
             ${state.auth.authenticated ? userAvatarMarkup() : ''}
             <span>${state.auth.authenticated ? `Signed in as ${escapeHtml((state.auth.user && state.auth.user.display_name) || 'Spotify User')}` : 'Not signed in'}</span>

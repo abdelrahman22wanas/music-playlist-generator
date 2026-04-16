@@ -10,7 +10,6 @@ from spotify_auth import (
     get_loaded_env_path,
 )
 import os
-import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -19,9 +18,7 @@ load_dotenv()
 
 
 def _get_asset_root():
-    """Resolve template/static location for source and packaged (PyInstaller) runs."""
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        return Path(sys._MEIPASS)
+    """Resolve template/static location for source runs."""
     return Path(__file__).resolve().parent
 
 

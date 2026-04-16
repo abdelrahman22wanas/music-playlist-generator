@@ -1,4 +1,6 @@
-# Music Playlist Generator
+# AuraMix
+
+![AuraMix Logo](static/img/auramix-logo.svg)
 
 Generate personalized Spotify playlists based on mood, activity, and time of day.
 
@@ -9,7 +11,7 @@ Generate personalized Spotify playlists based on mood, activity, and time of day
 - Save generated playlists to your Spotify account
 - Flask API backend with HTML/CSS/JavaScript frontend
 - Health endpoint for deployment checks
-- Docker, Render, and Windows desktop packaging support
+- Docker and cloud deployment support
 
 ## Saving Playlists to Spotify
 
@@ -123,26 +125,6 @@ Use matching callback URLs in both your environment and Spotify Developer Dashbo
 
 - Local: `http://127.0.0.1:5000/auth/spotify/callback`
 - Production example: `https://your-domain/auth/spotify/callback`
-
-## Build Windows EXE and Installer
-
-1. Build desktop EXE:
-
-```powershell
-.\build_exe.ps1
-```
-
-1. Output EXE:
-
-- `dist\MusicPlaylistGenerator.exe`
-
-1. Build installer with Inno Setup using:
-
-- `installer.iss`
-
-1. Installer output:
-
-- `dist\MusicPlaylistGeneratorSetup.exe`
 
 ## Production Checklist
 

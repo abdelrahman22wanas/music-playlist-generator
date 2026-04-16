@@ -1,4 +1,6 @@
-# 🎵 Music Playlist Generator
+# 🎵 AuraMix
+
+![AuraMix Logo](../static/img/auramix-logo.svg)
 
 Generate **personalized Spotify playlists** based on your **mood**, **activity**, and **time of day**. A beautiful, intuitive web app powered by the Spotify API.
 

@@ -1,6 +1,5 @@
 """Spotify authentication and session management."""
 import os
-import sys
 from pathlib import Path
 from dotenv import load_dotenv
 import spotipy
@@ -30,16 +29,11 @@ def _get_env_candidates():
     appdata = os.getenv('APPDATA')
     appdata_env = Path(appdata) / APP_CONFIG_FOLDER / '.env' if appdata else None
 
-    exe_dir = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else None
-    exe_env = exe_dir / '.env' if exe_dir else None
     cwd_env = Path.cwd() / '.env'
     repo_env = Path(__file__).resolve().parent / '.env'
 
     # Development should prefer local project env files over global AppData values.
-    if getattr(sys, 'frozen', False):
-        ordered = [appdata_env, exe_env, cwd_env, repo_env]
-    else:
-        ordered = [cwd_env, repo_env, appdata_env, exe_env]
+    ordered = [cwd_env, repo_env, appdata_env]
 
     for candidate in ordered:
         if candidate:

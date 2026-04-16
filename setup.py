@@ -54,8 +54,6 @@ setup(
         "requests==2.31.0",
         "gunicorn==23.0.0",
         "waitress==3.0.2",
-        "pywebview==6.1; platform_system == 'Windows' and python_version < '3.14'",
-        "pythonnet==3.0.5; platform_system == 'Windows' and python_version < '3.14'",
     ],
     extras_require={
         "dev": [
